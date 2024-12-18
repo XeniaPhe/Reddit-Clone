@@ -1,3 +1,8 @@
 from django.contrib import admin
+from core.models import *
 
-# Register your models here.
+admin.site.register(User)
+admin.site.register(Community)
+admin.site.register(Membership)
+admin.site.register(Post)
+admin.site.register(Comment)
