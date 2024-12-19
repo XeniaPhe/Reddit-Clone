@@ -1,15 +1,19 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser
 
 from core.managers import UserManager
+from core.auth.roles import MEMBER, MODERATOR, FOUNDER, ROLE_CHOICES
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
     username = models.CharField(max_length=64, primary_key=True)
     email = models.EmailField(unique=True)
     join_date = models.DateField(auto_now_add=True)
     score = models.IntegerField(default=0)
+    
     is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+    last_login = None
     
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
@@ -26,18 +30,17 @@ class Community(models.Model):
     def __str__(self):
         return self.name
     
-class Membership(models.Model):
-    MEMBER, MODERATOR, FOUNDER = 'Mem', 'Mod', 'Fdr'
-    ROLE_CHOICES = {
-        MEMBER: 'Member',
-        MODERATOR: 'Moderator',
-        FOUNDER: 'Founder',
-    }
-    
+class Membership(models.Model):    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=3, choices=ROLE_CHOICES, default=MEMBER)
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name='memberships')
     community = models.ForeignKey(to=Community, on_delete=models.CASCADE, related_name='memberships')
+    
+    def __str__(self):
+        return f'{self.community}-{self.user}'
+    
+    class Meta:
+        unique_together = [['user', 'community']]
 
 class Post(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -59,4 +62,4 @@ class Comment(models.Model):
     post = models.ForeignKey(to=Post, on_delete=models.DO_NOTHING, related_name='comments')
     
     def __str__(self):
-        return f"{self.post}-{self.user}-{self.id}"
+        return f'{self.post}-{self.user}-{self.id}'

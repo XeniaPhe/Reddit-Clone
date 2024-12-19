@@ -2,6 +2,8 @@ import graphene
 from graphene_django import DjangoObjectType
 from core.models import *
 
+from core.auth.auth import require_jwt
+
 class UserType(DjangoObjectType):
     class Meta:
         model = User
@@ -29,11 +31,12 @@ class CommentType(DjangoObjectType):
 
 class Query(graphene.ObjectType):
     users = graphene.List(UserType)
+    users_by_username = graphene.Field(UserType)
     communities = graphene.List(CommunityType)
     posts_by_community = graphene.List(PostType)
     comments_by_post = graphene.List(CommentType)
     
-    def resolve_users(root, info):
+    def resolve_users(root, info, community):
         return User.objects.all()
 
     def resolve_communities(root, info):
