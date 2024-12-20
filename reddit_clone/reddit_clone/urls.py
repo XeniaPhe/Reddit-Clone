@@ -19,7 +19,7 @@ from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
 
-from core.schemas import schema
+from reddit_clone.core.schemas.schemas import schema
 
 urlpatterns = [
     path('admin/', admin.site.urls),

@@ -36,7 +36,7 @@ class Query(graphene.ObjectType):
     posts_by_community = graphene.List(PostType)
     comments_by_post = graphene.List(CommentType)
     
-    def resolve_users(root, info, community):
+    def resolve_users(root, info, community_name):
         return User.objects.all()
 
     def resolve_communities(root, info):

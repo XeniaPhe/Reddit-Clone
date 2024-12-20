@@ -1,9 +1,9 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractBaseUser, AbstractUser
 
 from core.managers import UserManager
-from core.auth.roles import MEMBER, MODERATOR, FOUNDER, ROLE_CHOICES
+from core.auth.roles import MEMBER, MODERATOR, FOUNDER, DB_ROLE_CHOICES
 
 class User(AbstractBaseUser):
     username = models.CharField(max_length=64, primary_key=True)
@@ -11,8 +11,6 @@ class User(AbstractBaseUser):
     join_date = models.DateField(auto_now_add=True)
     score = models.IntegerField(default=0)
     
-    is_staff = models.BooleanField(default=False)
-    is_superuser = models.BooleanField(default=False)
     last_login = None
     
     USERNAME_FIELD = 'username'
@@ -23,6 +21,16 @@ class User(AbstractBaseUser):
     def __str__(self):
         return self.username
     
+    # Below fields and functions are for admin page only
+    is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+    
+    def has_perm(self, perm, obj=None):
+        return self.is_superuser
+
+    def has_module_perms(self, app_label):
+        return self.is_superuser
+    
 class Community(models.Model):
     name = models.CharField(max_length=64, primary_key=True)
     description = models.TextField(blank=True)
@@ -32,7 +40,7 @@ class Community(models.Model):
     
 class Membership(models.Model):    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    role = models.CharField(max_length=3, choices=ROLE_CHOICES, default=MEMBER)
+    role = models.CharField(max_length=3, choices=DB_ROLE_CHOICES, default=MEMBER)
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name='memberships')
     community = models.ForeignKey(to=Community, on_delete=models.CASCADE, related_name='memberships')
     

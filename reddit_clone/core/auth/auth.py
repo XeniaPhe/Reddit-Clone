@@ -3,9 +3,10 @@ from django.conf import settings
 from datetime import datetime, timedelta
 from functools import wraps
 
-from core.models import User, Membership, Community
-from core.custom_errors import internal_server_error, authentication_error, authorization_error, not_found
-from core.auth.roles import *
+from core.models import User, Membership
+from core.custom_errors import internal_server_error, authentication_error, authorization_error
+from core.auth.roles import GUEST, MEMBER, ADMIN, ROLE_CHOICES, permission_granted
+from core.services import get_user, assert_community_exists
 
 def create_jwt_token(user: User):
     payload = {
@@ -16,7 +17,7 @@ def create_jwt_token(user: User):
     
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-def require_jwt(community_param, required_role=Membership.MEMBER):
+def require_jwt(community_param, required_role=MEMBER):
     def decorator(func):
         @wraps(func)
         def wrapper(root, info, *args, **kwargs):
@@ -39,25 +40,21 @@ def require_jwt(community_param, required_role=Membership.MEMBER):
                 if community_name is None:
                     internal_server_error(f'Parameter {community_param} not found in kwargs')
                 
-                if not Community.objects.filter(name=community_name).exists():
-                    not_found(f'Community "{community_name}" does not exist')
+                assert_community_exists(community_name)
                     
                 membership = Membership.objects.filter(user_id=username, community_id=community_name).first()
                 user_role = membership.role if membership else ADMIN if is_admin else GUEST
                 
                 if not permission_granted(required_role, user_role):
                     authorization_error(f'Authorization failed: User "{username}" does not have the required role'+
-                                       +f'"{required_role}". Current role: "{ROLE_CHOICES_REVERSE[user_role]}"')
+                                       +f'"{ROLE_CHOICES[required_role]}". Current role: "{ROLE_CHOICES[user_role]}"')
                     
-                user = User.objects.get(username=username)
-                request.user = user
+                request.user = get_user(username)
                 
             except jwt.ExpiredSignatureError:
-                authentication_error('The jwt token has expired')
+                authentication_error('The JWT token has expired')
             except jwt.exceptions.InvalidTokenError:
-                authentication_error('Invalid jwt token')
-            except User.DoesNotExist:
-                authentication_error(f'User "{username}" does not exist')
+                authentication_error('Invalid JWT token')
             
             return func(root, info, *args, **kwargs)
         return wrapper
