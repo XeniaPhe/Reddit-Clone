@@ -1,25 +1,34 @@
 import graphene
+import django_filters
 from graphene_django import DjangoObjectType
 
-from core.models import User, Post, Comment
-from core.auth.auth import require_jwt
+from core.models import User
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
 from core.services import get_user, assert_user_exists, get_community, assert_community_exists, get_post, get_comment
+from core.pagination import PaginatedList, paginate
 
 class UserType(DjangoObjectType):
     class Meta:
         model = User
         fields = ('username', 'email', 'join_date', 'score')
+        filter_fields = {
+            'username': ['exact'],
+            'email': ['exact'],
+            'join_date': ['exact', 'lt', 'gt', 'lte', 'gte'],
+            'score': ['exact', 'lt', 'gt', 'lte', 'gte'],
+        }
     
     @classmethod
     def get_queryset(cls, queryset, info):
         return queryset.filter(is_superuser=False)
-        
+    
 class UserQuery(graphene.ObjectType):
     user_by_username = graphene.Field(UserType, username=graphene.Argument(graphene.String, required=True))
     user_by_post = graphene.Field(UserType, post_id=graphene.Argument(graphene.UUID, required=True))
     user_by_comment = graphene.Field(UserType, comment_id=graphene.Argument(graphene.UUID, required=True))
-    users = graphene.List(UserType, community_name=graphene.Argument(graphene.String, required=False))
+    
+    users = PaginatedList(graphene.NonNull(UserType),
+                          community_name=graphene.Argument(graphene.String, required=False))
     
     user_role = graphene.Field(CommunityRoleEnum,
                                username=graphene.Argument(graphene.String, required=True),
@@ -33,7 +42,8 @@ class UserQuery(graphene.ObjectType):
     
     def resolve_user_by_comment(root, info, comment_id):
         return get_comment(id).user
-        
+    
+    @paginate
     def resolve_users(root, info, community_name=None):
         if community_name is None:
             return User.objects.all()

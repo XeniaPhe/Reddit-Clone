@@ -1,6 +1,9 @@
 from uuid import UUID
 from graphql import GraphQLError
 
+def graphql_error(error_msg: str):
+    raise GraphQLError(error_msg)
+
 def internal_server_error(error_msg: str):
     raise GraphQLError(f'Internal Server Error:\n{error_msg}')
 
