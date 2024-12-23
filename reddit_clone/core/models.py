@@ -1,9 +1,9 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, AbstractUser
+from django.contrib.auth.models import AbstractBaseUser
 
 from core.managers import UserManager
-from core.auth.roles import MEMBER, MODERATOR, FOUNDER, DB_ROLE_CHOICES
+from core.auth.roles import MEMBER, DB_ROLE_CHOICES
 
 class User(AbstractBaseUser):
     username = models.CharField(max_length=64, primary_key=True)

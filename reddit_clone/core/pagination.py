@@ -1,5 +1,6 @@
 import graphene
 from functools import wraps
+
 from core.custom_errors import graphql_error
 
 SKIP_DEFAULT = 0

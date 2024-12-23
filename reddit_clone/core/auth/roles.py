@@ -1,5 +1,5 @@
-from core.custom_errors import internal_server_error
 import graphene
+from core.custom_errors import internal_server_error
 
 GUEST, MEMBER, MODERATOR, FOUNDER, ADMIN = 'Gst', 'Mem', 'Mod', 'Fdr', 'Adm'
 
