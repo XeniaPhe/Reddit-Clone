@@ -17,21 +17,46 @@ class _Metadata:
         self.has_next_page = self.current_page < self.total_pages
         self.has_previous_page = self.current_page > 1
 
-class _PaginatedList:
-    def __init__(self, queryset: QuerySet, skip: int, first: int):
-        self.items = queryset[skip: skip + first]
-        self.metadata = _Metadata(queryset.count(), skip, first)
-        
-    @staticmethod
-    def create(queryset: QuerySet, skip: int, first: int):
-        if first <= 0:
-            graphql_error('Pagination Error:\"first" must be greater than 0')
-        elif skip < 0:
-            graphql_error('Pagination Error: "skip" must be greater than or equal to 0')
-        elif skip >= queryset.count():
-            graphql_error("Pagination Error:\nskip cannot be greater than total item count")
+def _paginated_list(queryset: QuerySet, skip: int, first: int):
+    class _PaginatedList:
+        def __init__(self, queryset: QuerySet, skip: int, first: int):
+            self.queryset = queryset
+            self.skip = skip
+            self.first = first
+            self._meta = _PaginatedList.Meta()
             
-        return _PaginatedList(queryset, skip, first)
+        class Meta:
+            model = queryset.model
+            fields = [field.name for field in queryset.model._meta.get_fields()]
+            filter_fields = getattr(queryset.model, 'filter_fields', {})
+            
+    if first <= 0:
+        graphql_error('Pagination Error:\"first" must be greater than 0')
+    elif skip < 0:
+        graphql_error('Pagination Error: "skip" must be greater than or equal to 0')
+    elif skip >= queryset.count():
+        graphql_error("Pagination Error:\nskip cannot be greater than total item count")
+        
+    return _PaginatedList(queryset, skip, first)
+        
+# class _PaginatedList:
+#     def __init__(self, queryset: QuerySet, skip: int, first: int):
+#         self.items = queryset[skip: skip + first]
+#         self.page_info = _Metadata(queryset.count(), skip, first)
+        
+#     class Meta:
+#         model = 
+        
+#     @staticmethod
+#     def create(queryset: QuerySet, skip: int, first: int):
+#         if first <= 0:
+#             graphql_error('Pagination Error:\"first" must be greater than 0')
+#         elif skip < 0:
+#             graphql_error('Pagination Error: "skip" must be greater than or equal to 0')
+#         elif skip >= queryset.count():
+#             graphql_error("Pagination Error:\nskip cannot be greater than total item count")
+            
+#         return _PaginatedList(queryset, skip, first)
         
 def paginated_list(of_type: Type, **kwargs):
     class Metadata(graphene.ObjectType):
@@ -50,15 +75,20 @@ def paginated_list(of_type: Type, **kwargs):
         def resolve_has_previous_page(root, info): return root.has_previous_page
     
     class PaginatedList(graphene.ObjectType):
-        items = graphene.List(graphene.NonNull(of_type))
-        metadata = graphene.Field(Metadata)
+        page_info = graphene.Field(Metadata)
+        items = graphene.List(of_type)
     
-        def resolve_items(root, info): return root.items
-        def resolve_metadata(root, info): return root.metadata
+        def resolve_page_info(root, info): return root.page_info
+        
+        def resolve_items(root, info, **kwargs):
+            filter_fields = getattr(of_type._meta, 'filter_fields', {})
+            filter_kwargs = { key: value for key, value in kwargs.items() if key in filter_fields }
+            filtered = root.queryset.filter(**filter_kwargs)
+            return filtered[root.skip: root.skip + root.first]
         
     return graphene.Field(PaginatedList,
-                   skip=graphene.Argument(graphene.Int, required=False, default_value=0),
-                   first=graphene.Argument(graphene.Int, required=False, default_value=10),
+                   skip=graphene.Argument(graphene.Int, required=False, default_value=SKIP_DEFAULT),
+                   first=graphene.Argument(graphene.Int, required=False, default_value=FIRST_DEFAULT),
                    **kwargs)
 
 def paginate(func):
@@ -67,5 +97,5 @@ def paginate(func):
         queryset = func(root, info, *args, **kwargs)
         skip = kwargs.get("skip", SKIP_DEFAULT)
         first = kwargs.get("first", FIRST_DEFAULT)
-        return _PaginatedList.create(queryset, skip, first)
+        return _paginated_list(queryset, skip, first)
     return wrapper

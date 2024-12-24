@@ -3,8 +3,15 @@ from graphene_django import DjangoObjectType
 
 from core.models import User
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
-from core.services import get_user, assert_user_exists, get_community, assert_community_exists, get_post, get_comment
 from core.pagination import paginated_list, paginate
+
+from core.services import (
+    get_user,
+    assert_user_exists,
+    get_community,
+    assert_community_exists,
+    get_post, get_comment)
+
 
 class UserType(DjangoObjectType):
     class Meta:
@@ -35,10 +42,10 @@ class UserQuery(graphene.ObjectType):
         return get_user(username)
     
     def resolve_user_by_post(root, info, post_id):
-        return get_post(id).user
+        return get_post(post_id).user
     
     def resolve_user_by_comment(root, info, comment_id):
-        return get_comment(id).user
+        return get_comment(comment_id).user
     
     @paginate
     def resolve_users(root, info, *args, **kwargs):
