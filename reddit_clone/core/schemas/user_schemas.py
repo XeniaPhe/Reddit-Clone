@@ -1,11 +1,10 @@
 import graphene
-import django_filters
 from graphene_django import DjangoObjectType
 
 from core.models import User
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
 from core.services import get_user, assert_user_exists, get_community, assert_community_exists, get_post, get_comment
-from core.pagination import PaginatedList, paginate
+from core.pagination import paginated_list, paginate
 
 class UserType(DjangoObjectType):
     class Meta:
@@ -26,9 +25,7 @@ class UserQuery(graphene.ObjectType):
     user_by_username = graphene.Field(UserType, username=graphene.Argument(graphene.String, required=True))
     user_by_post = graphene.Field(UserType, post_id=graphene.Argument(graphene.UUID, required=True))
     user_by_comment = graphene.Field(UserType, comment_id=graphene.Argument(graphene.UUID, required=True))
-    
-    users = PaginatedList(graphene.NonNull(UserType),
-                          community_name=graphene.Argument(graphene.String, required=False))
+    users = paginated_list(UserType, community_name=graphene.Argument(graphene.String, required=False))
     
     user_role = graphene.Field(CommunityRoleEnum,
                                username=graphene.Argument(graphene.String, required=True),
@@ -44,7 +41,8 @@ class UserQuery(graphene.ObjectType):
         return get_comment(id).user
     
     @paginate
-    def resolve_users(root, info, community_name=None):
+    def resolve_users(root, info, *args, **kwargs):
+        community_name = kwargs.get('community_name')
         if community_name is None:
             return User.objects.all()
         
