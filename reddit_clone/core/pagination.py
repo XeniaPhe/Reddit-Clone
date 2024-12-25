@@ -2,8 +2,11 @@ import graphene
 from functools import wraps
 from typing import Type
 from django.db.models.query import QuerySet
+from graphene_django.types import DjangoObjectType
 
-from core.custom_errors import pagination_error
+from core.custom_errors import pagination_error, filter_error
+from core.filters.filter_utils import get_graphene_filter_arguments
+from core.filters.filter import filter_queryset
 
 SKIP_DEFAULT = 0
 FIRST_DEFAULT = 10
@@ -16,49 +19,24 @@ class _Metadata:
         self.current_page = (skip // first) + 1
         self.has_next_page = self.current_page < self.total_pages
         self.has_previous_page = self.current_page > 1
-
-def _paginated_list(queryset: QuerySet, skip: int, first: int):
-    class _PaginatedList:
-        def __init__(self, queryset: QuerySet, skip: int, first: int):
-            self.queryset = queryset
-            self.skip = skip
-            self.first = first
-            self._meta = _PaginatedList.Meta()
+        
+class _PaginatedList:
+    def __init__(self, queryset: QuerySet, skip: int, first: int):
+        self.items = queryset[skip: skip + first]
+        self.page_info = _Metadata(queryset.count(), skip, first)
+        
+    @staticmethod
+    def create(queryset: QuerySet, skip: int, first: int):
+        if first <= 0:
+            pagination_error('"first" must be greater than 0')
+        elif skip < 0:
+            pagination_error('"skip" must be greater than or equal to 0')
+        elif skip >= queryset.count():
+            pagination_error('"skip" cannot be greater than total item count')
             
-        class Meta:
-            model = queryset.model
-            fields = [field.name for field in queryset.model._meta.get_fields()]
-            filter_fields = getattr(queryset.model, 'filter_fields', {})
-            
-    if first <= 0:
-        pagination_error('"first" must be greater than 0')
-    elif skip < 0:
-        pagination_error('"skip" must be greater than or equal to 0')
-    elif skip >= queryset.count():
-        pagination_error("skip cannot be greater than total item count")
+        return _PaginatedList(queryset, skip, first)
         
-    return _PaginatedList(queryset, skip, first)
-        
-# class _PaginatedList:
-#     def __init__(self, queryset: QuerySet, skip: int, first: int):
-#         self.items = queryset[skip: skip + first]
-#         self.page_info = _Metadata(queryset.count(), skip, first)
-        
-#     class Meta:
-#         model = 
-        
-#     @staticmethod
-#     def create(queryset: QuerySet, skip: int, first: int):
-#         if first <= 0:
-#             graphql_error('Pagination Error:\"first" must be greater than 0')
-#         elif skip < 0:
-#             graphql_error('Pagination Error: "skip" must be greater than or equal to 0')
-#         elif skip >= queryset.count():
-#             graphql_error("Pagination Error:\nskip cannot be greater than total item count")
-            
-#         return _PaginatedList(queryset, skip, first)
-        
-def paginated_list(of_type: Type, **kwargs):
+def paginated_list(of_type: Type[DjangoObjectType], filter=False, **kwargs):
     class Metadata(graphene.ObjectType):
         total_items = graphene.Int()
         total_pages = graphene.Int()
@@ -74,28 +52,37 @@ def paginated_list(of_type: Type, **kwargs):
         def resolve_has_next_page(root, info): return root.has_next_page
         def resolve_has_previous_page(root, info): return root.has_previous_page
     
+    if filter:
+        graphene_filter_args = get_graphene_filter_arguments(of_type)
+        kwargs = {**kwargs, **graphene_filter_args}
+    
     class PaginatedList(graphene.ObjectType):
         page_info = graphene.Field(Metadata)
         items = graphene.List(of_type)
     
         def resolve_page_info(root, info): return root.page_info
-        
-        def resolve_items(root, info, **kwargs):
-            filter_fields = getattr(of_type._meta, 'filter_fields', {})
-            filter_kwargs = { key: value for key, value in kwargs.items() if key in filter_fields }
-            filtered = root.queryset.filter(**filter_kwargs)
-            return filtered[root.skip: root.skip + root.first]
+        def resolve_items(root, info, **kwargs): return root.items
         
     return graphene.Field(PaginatedList,
                    skip=graphene.Argument(graphene.Int, required=False, default_value=SKIP_DEFAULT),
                    first=graphene.Argument(graphene.Int, required=False, default_value=FIRST_DEFAULT),
                    **kwargs)
 
-def paginate(func):
-    @wraps(func)
-    def wrapper(root, info, *args, **kwargs):
-        queryset = func(root, info, *args, **kwargs)
-        skip = kwargs.get("skip", SKIP_DEFAULT)
-        first = kwargs.get("first", FIRST_DEFAULT)
-        return _paginated_list(queryset, skip, first)
-    return wrapper
+def paginate(filter_for_type: Type[DjangoObjectType]=None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(root, info, *args, **kwargs):
+            queryset = func(root, info, *args, **kwargs)
+            skip = kwargs.get("skip", SKIP_DEFAULT)
+            first = kwargs.get("first", FIRST_DEFAULT)
+            
+            if filter_for_type is not None:
+                if DjangoObjectType not in filter_for_type.__bases__:
+                    filter_error('The "filter_for_type" argument must be a "DjangoObjectType" for filtering. '
+                                f'Received: {filter_for_type.__name__}')
+                
+                queryset = filter_queryset(filter_for_type, queryset, **kwargs)
+                
+            return _PaginatedList(queryset, skip, first)
+        return wrapper
+    return decorator

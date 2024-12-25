@@ -4,9 +4,10 @@ from typing import Type
 from graphene_django.types import DjangoObjectType
 
 import core.filters.operators as ops
-from core.custom_errors import filter_error
+from core.utils.string_utils import to_camel_case, to_snake_case
+from core.custom_errors import filter_error, bad_request
 
-_type_map = {
+_django_to_graphene_type_map = {
     models.CharField: graphene.String,
     models.EmailField: graphene.String,
     models.IntegerField: graphene.Int,
@@ -17,53 +18,29 @@ _type_map = {
     models.DateTimeField: graphene.DateTime,
 }
 
-def to_camel_case(string: str) -> str:
-    camel_case = ''
-    upper = False
-    
-    for ch in string:
-        if ch == '_':
-            upper = True
-            continue
-        
-        if upper:
-            ch = ch.upper()
-            upper = False
-        
-        camel_case += ch
-    
-    return camel_case
-        
-def to_snake_case(string: str) -> str:
-    snake_case = ''
-    prev_lower = False
-    
-    for ch in string:
-        is_lower = ch.islower()
-        
-        if prev_lower and not is_lower: #hump!
-            ch = '_' + ch.lower()
-        
-        snake_case += ch
-        prev_lower = is_lower
-    
-    return snake_case
+_fixed_type_operator_map = {
+    ops.BOOLEAN_TAKING_OPERATORS: graphene.Boolean,
+    ops.STRING_TAKING_OPERATORS: graphene.String,
+    tuple(ops.INTEGER_TAKING_OPERATORS.keys()): graphene.Int,
+    ops.DATE_TAKING_OPERATORS: graphene.Date,
+    ops.DATETIME_TAKING_OPERATORS: graphene.DateTime,
+}
 
-def get_graphene_field_type(graphene_field: str, model_type: Type[models.Model]) -> Type:
+def _get_graphene_field_type(graphene_field: str, model_type: Type[models.Model]) -> Type:
     try:
         model_field = model_type._meta.get_field(graphene_field)
     except:
         filter_error(f'Field "{graphene_field}" specified in "filter_fields" does not exist in the model.\n'
                     f'Please make sure the field exists in the "{model_type.__name__}" model and is correctly listed in the "fields" attribute of the DjangoObjectType Meta class.')
     
-    for key, value in _type_map.items():
-        if isinstance(model_field, key):
-            return value
+    for django_type, graphene_type in _django_to_graphene_type_map.items():
+        if isinstance(model_field, django_type):
+            return graphene_type
         
     print(f'Could not find the type of "{model_field}" in recognized types, defaulting to "graphene.String"')
     return graphene.String
 
-def get_graphene_argument_type(filter_operator: str, graphene_field_type: Type) -> Type:
+def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type) -> Type:
     is_numeric = graphene_field_type in (graphene.Int, graphene.Float, graphene.Decimal)
     is_invalid = (is_numeric and filter_operator not in ops.NUMERIC_OPERATORS)
     is_invalid |= (graphene_field_type == graphene.String and filter_operator not in ops.STRING_OPERATORS)
@@ -74,17 +51,11 @@ def get_graphene_argument_type(filter_operator: str, graphene_field_type: Type) 
     if is_invalid:
         filter_error(f'Invalid filter operator "{filter_operator}" for field type {graphene_field_type.__name__}')
     
-    if filter_operator in ops.BOOLEAN_TAKING_OPERATORS:
-        return graphene.Boolean
-    elif filter_operator in ops.STRING_TAKING_OPERATORS:
-        return graphene.String
-    elif filter_operator in ops.INTEGER_TAKING_OPERATORS:
-        return graphene.Int
-    elif filter_operator in ops.DATE_TAKING_OPERATORS:
-        return graphene.Date
-    elif filter_operator in ops.DATETIME_TAKING_OPERATORS:
-        return graphene.DateTime
-    elif filter_operator in ops.COMPARISON_OPERATORS:
+    for fixed_type_operators, graphene_type in _fixed_type_operator_map.items():
+        if filter_operator in fixed_type_operators:
+            return graphene_type
+        
+    if filter_operator in ops.COMPARISON_OPERATORS:
         return graphene_field_type
     elif filter_operator == ops.IN:
         return graphene.List(graphene_field_type)
@@ -109,7 +80,7 @@ def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
             filter_error(f'Field "{filtered_field}" specified in "filter_fields" does not exist in the "fields" attribute.\n'
                         f'Make sure the field exists in the "{django_model_type.__name__}" model and is correctly listed in the "fields" attribute of the DjangoObjectType Meta class.')
             
-        graphene_field_type = get_graphene_field_type(filtered_field, django_model_type)
+        graphene_field_type = _get_graphene_field_type(filtered_field, django_model_type)
         
         for filter_operator in filter_operators:
             graphql_field = to_camel_case(filtered_field)
@@ -119,8 +90,8 @@ def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
             else:
                 graphql_filter = graphql_field
             
-            argument_type = get_graphene_argument_type(filter_operator, graphene_field_type)
-            argument = graphene.Argument(argument_type, required=False)
+            argument_type = _get_graphene_argument_type(filter_operator, graphene_field_type)
+            argument = graphene.Argument(argument_type, name=graphql_filter, required=False)
             filter_arguments[graphql_filter] = argument
     
     return filter_arguments
@@ -146,6 +117,19 @@ def get_django_filter_arguments(graphene_model_type: Type[DjangoObjectType], **g
         
         filter_operator = '_'.join(graphql_filter_parts[1:]).lower()
         filter_operator = filter_operator if filter_operator != '' else ops.EXACT
+        
+        if filter_operator in ops.INTEGER_TAKING_OPERATORS.keys():
+            allowed_range = ops.INTEGER_TAKING_OPERATORS[filter_operator]
+            if not (filter_value >= allowed_range[0] and filter_value <= allowed_range[1]):
+                bad_request(f'The provided filter value "{filter_value}" for filter "{graphql_filter}" is out of range. '
+                            f'Allowed range for filter operator "{filter_operator}" = [{allowed_range[0]}, {allowed_range[1]}].')
+        elif filter_operator == ops.RANGE:
+            if filter_value.start >= filter_value.end:
+                bad_request(f'The range filter provided is invalid: "[{filter_value.start}, {filter_value.end}]". '
+                            'Start value cannot be greater than or equal to the end value')
+                
+            filter_value = (filter_value.start, filter_value.end)
+        
         django_filter = filtered_field + '__' + filter_operator
         filter_arguments[django_filter] = filter_value
     

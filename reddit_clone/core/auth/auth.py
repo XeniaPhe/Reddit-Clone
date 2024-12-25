@@ -46,8 +46,8 @@ def require_jwt(community_param, required_role=MEMBER):
                 user_role = membership.role if membership else ADMIN if is_admin else GUEST
                 
                 if not permission_granted(required_role, user_role):
-                    authorization_error(f'Authorization failed:\n    User "{username}" does not have the required role'+
-                                       +f'"{ROLE_CHOICES[required_role]}". Current role: "{ROLE_CHOICES[user_role]}"')
+                    authorization_error(f'User "{username}" does not have the required role '
+                                       f'"{ROLE_CHOICES[required_role]}". Current role: "{ROLE_CHOICES[user_role]}"')
                     
                 request.user = get_user(username)
                 

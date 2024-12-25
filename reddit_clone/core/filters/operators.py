@@ -108,6 +108,7 @@ STRING_TAKING_OPERATORS = (
     ISTARTS_WITH,
 )
 
+#values in the dictionary represent the allowed range for the filter, both are inclusive
 INTEGER_TAKING_OPERATORS = {
     SECOND: (0, 59),
     MINUTE: (0, 59),

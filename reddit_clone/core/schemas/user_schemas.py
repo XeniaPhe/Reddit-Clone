@@ -1,9 +1,10 @@
 import graphene
 from graphene_django import DjangoObjectType
 
+import core.filters.operators as ops
 from core.models import User
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
-from core.pagination import paginated_list, paginate
+from core.utils.query_utils import get_list, filter_and_paginate
 
 from core.services import (
     get_user,
@@ -18,10 +19,10 @@ class UserType(DjangoObjectType):
         model = User
         fields = ('username', 'email', 'join_date', 'score')
         filter_fields = {
-            'username': ['exact'],
-            'email': ['exact'],
-            'join_date': ['exact', 'lt', 'gt', 'lte', 'gte'],
-            'score': ['exact', 'lt', 'gt', 'lte', 'gte'],
+            'username': [ops.EXACT, ops.GT],
+            'email': [ops.EXACT],
+            'join_date': [ops.EXACT, ops.LT, ops.GT, ops.LTE, ops.GTE],
+            'score': [ops.EXACT, ops.LT, ops.GT, ops.LTE, ops.GTE, ops.RANGE],
         }
     
     @classmethod
@@ -32,7 +33,8 @@ class UserQuery(graphene.ObjectType):
     user_by_username = graphene.Field(UserType, username=graphene.Argument(graphene.String, required=True))
     user_by_post = graphene.Field(UserType, post_id=graphene.Argument(graphene.UUID, required=True))
     user_by_comment = graphene.Field(UserType, comment_id=graphene.Argument(graphene.UUID, required=True))
-    users = paginated_list(UserType, community_name=graphene.Argument(graphene.String, required=False))
+    users = get_list(UserType, filter=True, paginate=True,
+                     community_name=graphene.Argument(graphene.String, required=False))
     
     user_role = graphene.Field(CommunityRoleEnum,
                                username=graphene.Argument(graphene.String, required=True),
@@ -47,7 +49,7 @@ class UserQuery(graphene.ObjectType):
     def resolve_user_by_comment(root, info, comment_id):
         return get_comment(comment_id).user
     
-    @paginate
+    @filter_and_paginate(UserType)
     def resolve_users(root, info, *args, **kwargs):
         community_name = kwargs.get('community_name')
         if community_name is None:
