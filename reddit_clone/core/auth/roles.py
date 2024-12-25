@@ -30,4 +30,4 @@ def permission_granted(required_role, user_role):
         elif required_role == role:
             return False
     
-    internal_server_error(f'Undefined roles:\nUser role: {user_role}\nRequired role: {required_role}')
+    internal_server_error(f'Undefined roles:\n    User role: {user_role}\nRequired role: {required_role}')

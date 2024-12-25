@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Type
 from django.db.models.query import QuerySet
 
-from core.custom_errors import graphql_error
+from core.custom_errors import pagination_error
 
 SKIP_DEFAULT = 0
 FIRST_DEFAULT = 10
@@ -31,11 +31,11 @@ def _paginated_list(queryset: QuerySet, skip: int, first: int):
             filter_fields = getattr(queryset.model, 'filter_fields', {})
             
     if first <= 0:
-        graphql_error('Pagination Error:\"first" must be greater than 0')
+        pagination_error('"first" must be greater than 0')
     elif skip < 0:
-        graphql_error('Pagination Error: "skip" must be greater than or equal to 0')
+        pagination_error('"skip" must be greater than or equal to 0')
     elif skip >= queryset.count():
-        graphql_error("Pagination Error:\nskip cannot be greater than total item count")
+        pagination_error("skip cannot be greater than total item count")
         
     return _PaginatedList(queryset, skip, first)
         
