@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from core.models import *
 
+admin.site.register(TestModel)
 admin.site.register(User)
 admin.site.register(Community)
 admin.site.register(Membership)

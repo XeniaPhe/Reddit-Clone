@@ -24,7 +24,7 @@ class TestModel(models.Model):
     name = models.CharField(max_length=64)
     surname = models.CharField(max_length=64)
     rating_1 = models.IntegerField(default=0)
-    rating_2 = models.DecimalField(decimal_places=3, default=0)
+    rating_2 = models.DecimalField(decimal_places=3, max_digits=7, default=0)
     rating_3 = models.FloatField(default=0)
     join_date = models.DateField(default=random_date(date(2000, 1, 1), date(2030, 12, 31)))
     transaction_timestamp = models.DateTimeField(default=random_datetime(datetime(2000, 1, 1, 0, 0, 0), datetime(2030, 12, 31, 23, 59, 59)))

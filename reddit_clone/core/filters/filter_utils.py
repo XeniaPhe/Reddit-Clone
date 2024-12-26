@@ -5,7 +5,7 @@ from graphene_django.types import DjangoObjectType
 
 import core.filters.operators as ops
 from core.utils.string_utils import to_camel_case, to_snake_case
-from core.custom_errors import filter_error, bad_request
+from core.custom_errors import filter_error, bad_request, internal_server_error
 
 _django_to_graphene_type_map = {
     models.CharField: graphene.String,
@@ -52,6 +52,24 @@ def _to_original_field_name(graphene_model_type: Type[DjangoObjectType], graphql
     
     return original_field_name
 
+def _get_graphene_model_fields(graphene_model_type: Type[DjangoObjectType]):
+    graphene_model_fields = getattr(graphene_model_type._meta, 'fields', None)
+    
+    if graphene_model_fields:
+        if (isinstance(graphene_model_fields, list) and all(isinstance(field, str) for field in graphene_model_fields)):
+            return graphene_model_fields
+        elif isinstance(graphene_model_fields, str) and graphene_model_fields == '__all__':
+            return [field.name for field in graphene_model_type._meta.model._meta.get_fields()]
+        
+    graphene_model_exclude = getattr(graphene_model_type._meta, 'exclude', None)
+    
+    if graphene_model_exclude and isinstance(graphene_model_exclude, tuple):
+        return [field.name for field in graphene_model_type._meta.model._meta.get_fields()
+                if field.name not in graphene_model_exclude]
+    
+    #default to all model fields
+    return [field.name for field in graphene_model_type._meta.model._meta.get_fields()]
+        
 def _get_graphene_field_type(graphene_field: str, model_type: Type[models.Model], suppress_logs=False) -> Type:
     try:
         model_field = model_type._meta.get_field(graphene_field)
@@ -102,8 +120,9 @@ def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type)
     
 def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
     django_model_type = graphene_model_type._meta.model
-    graphene_fields = graphene_model_type._meta.fields
+    graphene_fields = _get_graphene_model_fields(graphene_model_type)
     filter_fields = graphene_model_type._meta.filter_fields
+    filter_fields = {} if not filter_fields else filter_fields
     
     filter_arguments = {}
     
@@ -130,7 +149,7 @@ def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
 
 def get_graphene_orderby_arguments(graphene_model_type: Type[DjangoObjectType]):
     django_model_type = graphene_model_type._meta.model
-    graphene_fields = graphene_model_type._meta.fields
+    graphene_fields = _get_graphene_model_fields(graphene_model_type)
     
     ordering_choices = {}
     
@@ -139,11 +158,11 @@ def get_graphene_orderby_arguments(graphene_model_type: Type[DjangoObjectType]):
         graphql_field = to_camel_case(ordered_field)
         
         ordering_choices[graphql_field] = graphql_field
-        ordering_choices[f'-{graphql_field}'] = f'-{graphql_field}'
+        ordering_choices[f'{graphql_field}_desc'] = f'-{graphql_field}'
         
     enum_type = type(f'{django_model_type.__name__}OrderByEnum', (graphene.Enum,), ordering_choices)
     
-    return {'orderBy': graphene.Argument(enum_type, name='orderBy', required=False)}
+    return {'orderBy': graphene.Argument(graphene.List(enum_type), name='orderBy', required=False)}
         
 def get_django_filter_arguments(graphene_model_type: Type[DjangoObjectType], **graphql_filter_params):
     all_filters = get_graphene_filter_arguments(graphene_model_type).keys()
@@ -175,10 +194,29 @@ def get_django_filter_arguments(graphene_model_type: Type[DjangoObjectType], **g
     
     return filter_arguments
 
-def get_django_orderby_argument(graphene_model_type: Type[DjangoObjectType], **graphql_filter_params):
-    orderby = graphql_filter_params.get('orderBy', None)
-    if orderby:
-        is_descending = True if orderby[0] == '-' else False
-        original_field_name = _to_original_field_name(graphene_model_type, orderby.strip('-'))
-        return f'-{original_field_name}' if is_descending else original_field_name
-    return None
+def get_django_orderby_arguments(graphene_model_type: Type[DjangoObjectType], **graphql_filter_params):
+    orderby_fields = graphql_filter_params.get('orderBy', None)
+    orderby_arguments = []
+    
+    if orderby_fields:
+        if type(orderby_fields) == str:
+            orderby_fields = [orderby_fields]
+            
+        orderby_fields_stripped = [field.strip('-') for field in orderby_fields]
+        orderby_fields_set = set(orderby_fields_stripped)
+        if len(orderby_fields_stripped) != len(orderby_fields_set):
+            duplicate_fields = [f'"{field}"' for field in orderby_fields_set if orderby_fields_stripped.count(field) > 1]
+            duplicate_fields_str = ', '.join(duplicate_fields)
+            bad_request(f'Duplicate fields detected in orderBy: {duplicate_fields_str}. Each field can only be used once.')
+        
+        for orderby_field in orderby_fields:
+            is_descending = True if orderby_field[0] == '-' else False
+            original_field_name = _to_original_field_name(graphene_model_type, orderby_field.strip('-'))
+            orderby_arguments.append(f'-{original_field_name}' if is_descending else original_field_name)
+    else:
+        default_ordering = getattr(graphene_model_type._meta, 'ordering', None)
+        if default_ordering:
+            default_ordering = [default_ordering] if isinstance(default_ordering, str) else default_ordering
+            orderby_arguments.extend(default_ordering)
+    
+    return orderby_arguments
