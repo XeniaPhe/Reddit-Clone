@@ -110,11 +110,13 @@ def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type)
     elif filter_operator == ops.IN:
         return graphene.List(graphene_field_type)
     elif filter_operator == ops.RANGE:
-        class Range(graphene.InputObjectType):
-            start = graphene_field_type(required=True)
-            end = graphene_field_type(required=True)
-                
-        return Range
+        class_name = f'{graphene_field_type.__name__}Range'
+        class_attributes = {
+            'start': graphene.Field(graphene_field_type, required=True),
+            'end': graphene.Field(graphene_field_type, required=True),
+        }
+        
+        return type(class_name, (graphene.InputObjectType,), class_attributes)
         
     filter_error(f'Filter operator {filter_operator} is undefined')
     
@@ -160,7 +162,7 @@ def get_graphene_orderby_arguments(graphene_model_type: Type[DjangoObjectType]):
         ordering_choices[graphql_field] = graphql_field
         ordering_choices[f'{graphql_field}_desc'] = f'-{graphql_field}'
         
-    enum_type = type(f'{django_model_type.__name__}OrderByEnum', (graphene.Enum,), ordering_choices)
+    enum_type = type(f'{django_model_type._meta.model.__name__}OrderByEnum', (graphene.Enum,), ordering_choices)
     
     return {'orderBy': graphene.Argument(graphene.List(enum_type), name='orderBy', required=False)}
         

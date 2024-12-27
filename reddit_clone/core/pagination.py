@@ -52,13 +52,18 @@ class _PaginatedList:
         return _PaginatedList(queryset, skip, first)
         
 def paginated_list(of_type: Type[DjangoObjectType], filter=False, **kwargs):
-    class PaginatedList(graphene.ObjectType):
-        page_info = graphene.Field(Metadata)
-        items = graphene.List(of_type)
+    def resolve_page_info(root, info): return root.page_info
+    def resolve_items(root, info): return root.items
     
-        def resolve_page_info(root, info): return root.page_info
-        def resolve_items(root, info): return root.items
+    class_name = f'{of_type._meta.model.__name__}PaginatedList'
+    class_attributes = {
+        'page_info': graphene.Field(Metadata),
+        'items': graphene.List(of_type),
+        'resolve_page_info': resolve_page_info,
+        'resolve_items': resolve_items,
+    }
     
+    PaginatedList = type(class_name, (graphene.ObjectType,), class_attributes)
     kwargs = get_all_graphene_kwargs_for_type(of_type, **kwargs) if filter else kwargs
     
     return graphene.Field(PaginatedList,
