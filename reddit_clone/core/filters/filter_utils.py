@@ -78,7 +78,7 @@ def _get_graphene_field_type(graphene_field: str, model_type: Type[models.Model]
                     f'Please make sure the field exists in the "{model_type.__name__}" model and is correctly listed in the "fields" attribute of the DjangoObjectType Meta class.')
     
     for django_type, graphene_type in _django_to_graphene_type_map.items():
-        if isinstance(model_field, django_type):
+        if type(model_field) == django_type:
             return graphene_type
     
     if not suppress_logs:
@@ -97,7 +97,7 @@ def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type)
     is_invalid |= (graphene_field_type == graphene.Time and filter_operator not in ops.TIME_OPERATORS)
     is_invalid |= (graphene_field_type == graphene.DateTime and filter_operator not in ops.DATETIME_OPERATORS)
     is_invalid |= (graphene_field_type == graphene.List and filter_operator not in ops.LIST_OPERATORS)
-    
+
     if is_invalid:
         filter_error(f'Invalid filter operator "{filter_operator}" for field type {graphene_field_type.__name__}')
     

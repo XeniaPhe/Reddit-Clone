@@ -75,9 +75,9 @@ def paginate(filter_for_type: Type[DjangoObjectType]=None):
             first = kwargs.get("first", FIRST_DEFAULT)
             
             if filter_for_type is not None:
-                if DjangoObjectType not in filter_for_type.__bases__:
+                if not hasattr(filter_for_type, '__bases__') or DjangoObjectType not in filter_for_type.__bases__:
                     filter_error('The "filter_for_type" argument must be a "DjangoObjectType" for filtering. '
-                                f'Received: {filter_for_type.__name__}')
+                                f'Received: {filter_for_type.__name__ if hasattr(filter_for_type, '__name__') else filter_for_type}')
                 
                 queryset = filter_queryset(filter_for_type, queryset, **kwargs)
                 

@@ -5,6 +5,8 @@ import core.filters.operators as ops
 from core.models import User, TestModel
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
 from core.utils.query_utils import get_list, filter_and_paginate
+from core.filters.filter import filtered_list, filter
+from core.pagination import paginated_list, paginate
 
 from core.services import (
     get_user,
@@ -32,8 +34,21 @@ class UserType(DjangoObjectType):
 class TestType(DjangoObjectType):
     class Meta:
         model = TestModel
+        exclude = ['rating_3']
         filter_fields = {
-            'username': [ops.EXACT, ops.RANGE]
+            'id': ops.ID_OPERATORS,
+            'username': ops.STRING_OPERATORS,
+            'email': ops.STRING_OPERATORS,
+            'name': ops.STRING_OPERATORS,
+            'surname': ops.STRING_OPERATORS,
+            'rating_1': ops.NUMERIC_OPERATORS,
+            'rating_2': ops.NUMERIC_OPERATORS,
+            'rating_3': ops.NUMERIC_OPERATORS,
+            'join_date': ops.DATE_OPERATORS,
+            'transaction_timestamp': ops.DATETIME_OPERATORS,
+            'camelCaseTest': ops.BOOLEAN_OPERATORS,
+            'PascalCaseTest': ops.NUMERIC_OPERATORS,
+            'SCREAMING_SNAKE_CASE_TEST': ops.STRING_OPERATORS,
         }
         ordering = '-username'
         
@@ -54,7 +69,7 @@ class UserQuery(graphene.ObjectType):
     user_by_post = graphene.Field(UserType, post_id=graphene.Argument(graphene.UUID, required=True))
     user_by_comment = graphene.Field(UserType, comment_id=graphene.Argument(graphene.UUID, required=True))
     users = get_list(UserType, filter=True, paginate=True,
-                     community_name=graphene.Argument(graphene.String, required=False))
+                    community_name=graphene.Argument(graphene.String, required=False))
     
     user_role = graphene.Field(CommunityRoleEnum,
                                username=graphene.Argument(graphene.String, required=True),
