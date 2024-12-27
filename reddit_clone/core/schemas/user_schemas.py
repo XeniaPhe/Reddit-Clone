@@ -32,6 +32,9 @@ class UserType(DjangoObjectType):
 class TestType(DjangoObjectType):
     class Meta:
         model = TestModel
+        filter_fields = {
+            'username': [ops.EXACT, ops.RANGE]
+        }
         ordering = '-username'
         
 class TestQuery(graphene.ObjectType):

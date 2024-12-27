@@ -2,9 +2,9 @@ import graphene
 from django.db import models
 from typing import Type
 from graphene_django.types import DjangoObjectType
+from graphene.utils.str_converters import to_camel_case, to_snake_case
 
 import core.filters.operators as ops
-from core.utils.string_utils import to_camel_case, to_snake_case
 from core.custom_errors import filter_error, bad_request, internal_server_error
 
 _django_to_graphene_type_map = {
@@ -201,6 +201,8 @@ def get_django_orderby_arguments(graphene_model_type: Type[DjangoObjectType], **
     if orderby_fields:
         if type(orderby_fields) == str:
             orderby_fields = [orderby_fields]
+        else:
+            orderby_fields = [field.value for field in orderby_fields]
             
         orderby_fields_stripped = [field.strip('-') for field in orderby_fields]
         orderby_fields_set = set(orderby_fields_stripped)

@@ -14,6 +14,7 @@ class _Metadata:
     def __init__(self, total_items: int, skip: int, first: int):
         self.total_items = total_items
         self.total_pages = (total_items + first - 1) // first
+        self.total_pages = 1 if self.total_pages == 0 else self.total_pages
         self.page_size = first
         self.current_page = (skip // first) + 1
         self.has_next_page = self.current_page < self.total_pages
