@@ -4,6 +4,33 @@ from django.contrib.auth.models import AbstractBaseUser
 
 from core.managers import UserManager
 from core.auth.roles import MEMBER, DB_ROLE_CHOICES
+from datetime import date, datetime, timedelta
+
+import random
+def random_date(start_date, end_date):
+    delta = end_date - start_date
+    random_days = random.randint(0, delta.days)
+    return start_date + timedelta(days=random_days)
+
+def random_datetime(start_datetime, end_datetime):
+    delta = end_datetime - start_datetime
+    random_seconds = random.randint(0, int(delta.total_seconds()))
+    return start_datetime + timedelta(seconds=random_seconds)
+
+class TestModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    username = models.CharField(max_length=64, unique=True)
+    email = models.EmailField(unique=True)
+    name = models.CharField(max_length=64)
+    surname = models.CharField(max_length=64)
+    rating_1 = models.IntegerField(default=0)
+    rating_2 = models.DecimalField(decimal_places=3, max_digits=7, default=0)
+    rating_3 = models.FloatField(default=0)
+    join_date = models.DateField(default=random_date(date(2000, 1, 1), date(2030, 12, 31)))
+    transaction_timestamp = models.DateTimeField(default=random_datetime(datetime(2000, 1, 1, 0, 0, 0), datetime(2030, 12, 31, 23, 59, 59)))
+    camelCaseTest = models.BooleanField()
+    PascalCaseTest = models.BigIntegerField(default=0)
+    SCREAMING_SNAKE_CASE_TEST = models.CharField(max_length=64, default="")
 
 class User(AbstractBaseUser):
     username = models.CharField(max_length=64, primary_key=True)
