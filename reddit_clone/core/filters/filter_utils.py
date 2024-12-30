@@ -54,9 +54,10 @@ def _to_original_field_name(graphene_model_type: Type[DjangoObjectType], graphql
 
 def _get_graphene_model_fields(graphene_model_type: Type[DjangoObjectType]):
     graphene_model_fields = getattr(graphene_model_type._meta, 'fields', None)
+    graphene_model_fields = tuple(graphene_model_fields.keys()) if graphene_model_fields else None
     
     if graphene_model_fields:
-        if (isinstance(graphene_model_fields, list) and all(isinstance(field, str) for field in graphene_model_fields)):
+        if (isinstance(graphene_model_fields, tuple) and all(isinstance(field, str) for field in graphene_model_fields)):
             return graphene_model_fields
         elif isinstance(graphene_model_fields, str) and graphene_model_fields == '__all__':
             return [field.name for field in graphene_model_type._meta.model._meta.get_fields()]
