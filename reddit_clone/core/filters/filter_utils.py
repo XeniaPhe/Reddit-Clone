@@ -26,7 +26,7 @@ _django_to_graphene_type_map = {
     models.DateTimeField: graphene.DateTime,
     models.ForeignKey: graphene.ID,
     models.OneToOneField: graphene.ID,
-    models.ManyToManyField: type(graphene.List(graphene.ID)),
+    models.ManyToManyField: graphene.List(graphene.ID),
 }
 
 _fixed_type_operator_map = {
@@ -63,8 +63,9 @@ def _get_graphene_model_fields(graphene_model_type: Type[DjangoObjectType]):
             return [field.name for field in graphene_model_type._meta.model._meta.get_fields()]
         
     graphene_model_exclude = getattr(graphene_model_type._meta, 'exclude', None)
+    graphene_model_exclude = tuple(graphene_model_exclude) if graphene_model_exclude else None
     
-    if graphene_model_exclude and isinstance(graphene_model_exclude, tuple):
+    if graphene_model_exclude:
         return [field.name for field in graphene_model_type._meta.model._meta.get_fields()
                 if field.name not in graphene_model_exclude]
     
@@ -97,7 +98,7 @@ def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type)
     is_invalid |= (graphene_field_type == graphene.Date and filter_operator not in ops.DATE_OPERATORS)
     is_invalid |= (graphene_field_type == graphene.Time and filter_operator not in ops.TIME_OPERATORS)
     is_invalid |= (graphene_field_type == graphene.DateTime and filter_operator not in ops.DATETIME_OPERATORS)
-    is_invalid |= (graphene_field_type == graphene.List and filter_operator not in ops.LIST_OPERATORS)
+    is_invalid |= (type(graphene_field_type) == graphene.List and filter_operator not in ops.LIST_OPERATORS)
 
     if is_invalid:
         filter_error(f'Invalid filter operator "{filter_operator}" for field type {graphene_field_type.__name__}')
