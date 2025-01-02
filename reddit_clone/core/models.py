@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser
+from django.utils import timezone
 
 from core.managers import UserManager
 from core.auth.roles import MEMBER, DB_ROLE_CHOICES
@@ -8,7 +9,7 @@ from core.auth.roles import MEMBER, DB_ROLE_CHOICES
 class User(AbstractBaseUser):
     username = models.CharField(max_length=48, primary_key=True)
     email = models.EmailField(unique=True)
-    join_date = models.DateField(auto_now_add=True)
+    join_date = models.DateField(default=timezone.now)
     score = models.IntegerField(default=0)
     
     last_login = None

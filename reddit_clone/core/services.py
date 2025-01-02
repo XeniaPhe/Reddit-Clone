@@ -1,13 +1,24 @@
 from uuid import UUID
 
 from core.models import User, Community, Post, Comment
-from core.custom_errors import user_not_found, community_not_found, post_not_found, comment_not_found
+from core.custom_errors import (
+    user_not_found,
+    user_not_found_with_email,
+    community_not_found,
+    post_not_found,
+    comment_not_found)
 
 def get_user(username: str) -> User | None:
     try:
         return User.objects.get(username=username)
     except User.DoesNotExist:
         user_not_found(username)
+        
+def get_user_with_email(email: str) -> User | None:
+    try:
+        return User.objects.get(email=email)
+    except User.DoesNotExist:
+        user_not_found_with_email(email)
 
 def assert_user_exists(username: str):
     get_user(username)
