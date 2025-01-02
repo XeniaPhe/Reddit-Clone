@@ -5,7 +5,7 @@ from functools import wraps
 
 from core.models import User, Membership
 from core.custom_errors import internal_server_error, authentication_error, authorization_error
-from core.auth.roles import GUEST, MEMBER, ADMIN, ROLE_CHOICES, permission_granted
+from core.auth.roles import GUEST, MEMBER, ADMIN, ALL_ROLES, permission_granted
 from core.services import get_user, assert_community_exists
 
 def create_jwt_token(user: User):
@@ -47,7 +47,7 @@ def require_jwt(community_param, required_role=MEMBER):
                 
                 if not permission_granted(required_role, user_role):
                     authorization_error(f'User "{username}" does not have the required role '
-                                       f'"{ROLE_CHOICES[required_role]}". Current role: "{ROLE_CHOICES[user_role]}"')
+                                       f'"{ALL_ROLES[required_role]}". Current role: "{ALL_ROLES[user_role]}"')
                     
                 request.user = get_user(username)
                 

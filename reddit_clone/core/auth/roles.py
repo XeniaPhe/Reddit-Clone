@@ -4,15 +4,13 @@ from core.custom_errors import internal_server_error
 GUEST, MEMBER, MODERATOR, FOUNDER, ADMIN = 'Gst', 'Mem', 'Mod', 'Fdr', 'Adm'
 
 DB_ROLE_CHOICES = {
+    GUEST: 'Guest',
     MEMBER: 'Member',
     MODERATOR: 'Moderator',
     FOUNDER: 'Founder',
 }
 
-ROLE_CHOICES = DB_ROLE_CHOICES | {
-    GUEST: 'Guest',
-    ADMIN: 'Admin',
-}
+ALL_ROLES = DB_ROLE_CHOICES | { ADMIN: 'Admin', }
 
 class CommunityRoleEnum(graphene.Enum):
     GUEST = 'Guest'

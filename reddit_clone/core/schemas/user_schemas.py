@@ -2,7 +2,7 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import User, TestModel
+from core.models import User
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
 from core.utils.query_utils import get_list, filter_and_paginate
 from core.filters.filter import filtered_list, filter
@@ -18,7 +18,7 @@ from core.services import (
 class UserType(DjangoObjectType):
     class Meta:
         model = User
-        fields = ('username', 'email', 'join_date', 'score')
+        fields = ('username', 'email', 'join_date', 'score',)
         filter_fields = {
             'username': [ops.EXACT, ops.GT],
             'email': [ops.EXACT],
@@ -29,40 +29,6 @@ class UserType(DjangoObjectType):
     @classmethod
     def get_queryset(cls, queryset, info):
         return queryset.filter(is_superuser=False)
-    
-
-class TestType(DjangoObjectType):
-    class Meta:
-        model = TestModel
-        exclude = ['rating_3']
-        filter_fields = {
-            'id': ops.ID_OPERATORS,
-            'username': ops.STRING_OPERATORS,
-            'email': ops.STRING_OPERATORS,
-            'name': ops.STRING_OPERATORS,
-            'surname': ops.STRING_OPERATORS,
-            'rating_1': ops.NUMERIC_OPERATORS,
-            'rating_2': ops.NUMERIC_OPERATORS,
-            'rating_3': ops.NUMERIC_OPERATORS,
-            'join_date': ops.DATE_OPERATORS,
-            'transaction_timestamp': ops.DATETIME_OPERATORS,
-            'camelCaseTest': ops.BOOLEAN_OPERATORS,
-            'PascalCaseTest': ops.NUMERIC_OPERATORS,
-            'SCREAMING_SNAKE_CASE_TEST': ops.STRING_OPERATORS,
-        }
-        ordering = '-username'
-        
-class TestQuery(graphene.ObjectType):
-    tests = get_list(TestType, filter=True, paginate=True,
-                     extra_filter=graphene.Argument(graphene.Int, required=False))
-    
-    @filter_and_paginate(TestType)
-    def resolve_tests(root, info, *args, **kwargs):
-        extra_filter = kwargs.get('extra_filter', None)
-        if not extra_filter:
-            return TestModel.objects.all()
-        
-        return TestModel.objects.filter(rating_1__gt=extra_filter)
     
 class UserQuery(graphene.ObjectType):
     user_by_username = graphene.Field(UserType, username=graphene.Argument(graphene.String, required=True))
