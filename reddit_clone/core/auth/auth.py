@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from core.models import User, Membership
+from core.services.user_service import get_user
+from core.services.community_service import assert_community_exists
 from core.custom_errors import internal_server_error, authentication_error, authorization_error
 from core.auth.roles import GUEST, MEMBER, ADMIN, ALL_ROLES, permission_granted
-from core.services import get_user, assert_community_exists
 
 def create_jwt_token(user: User):
     payload = {

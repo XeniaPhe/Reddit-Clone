@@ -28,9 +28,6 @@ def pagination_error(error_msg: str):
 def user_not_found(username: str):
     not_found(f'User "{username}" does not exist')
     
-def user_not_found_with_email(email: str):
-    not_found(f'User with email "{email}" does not exist')
-
 def community_not_found(name: str):
     not_found(f'Community "{name}" does not exist')
     

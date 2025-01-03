@@ -1,33 +1,31 @@
 import graphene
 from graphene_django import DjangoObjectType
 
-from core.models import User
-from core.custom_errors import not_found
-from core.filters.filter import filtered_list, filter
 import core.filters.operators as ops
-from core.pagination import paginated_list, paginate
+from core.models import User
+from core.services.user_service import fetch_user, get_user, assert_user_exists
+from core.services.community_service import get_community, assert_community_exists
+from core.services.post_service import get_post
+from core.services.comment_service import get_comment
+
+from core.custom_errors import not_found
 from core.utils.query_utils import get_list, filter_and_paginate
 from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
 from core.auth.auth import require_authentication, create_jwt_token
-
-from core.services import (
-    get_user,
-    get_user_with_email,
-    assert_user_exists,
-    get_community,
-    assert_community_exists,
-    get_post, get_comment)
 
 class UserType(DjangoObjectType):
     class Meta:
         model = User
         fields = ('username', 'email', 'join_date', 'score',)
         filter_fields = {
-            'username': [ops.EXACT, ops.GT],
-            'email': [ops.EXACT],
-            'join_date': [ops.EXACT, ops.LT, ops.GT, ops.LTE, ops.GTE],
-            'score': [ops.EXACT, ops.LT, ops.GT, ops.LTE, ops.GTE, ops.RANGE],
+            'username': ops.ID_OPERATORS,
+            'email': (ops.EXACT,),
+            'join_date': ops.DATE_OPERATORS,
+            'score': ops.NUMERIC_OPERATORS,
         }
+        
+    #posts = graphene.List()
+    #comments = graphene.List()
     
     @classmethod
     def get_queryset(cls, queryset, info):
@@ -87,20 +85,13 @@ class UserSignup(graphene.Mutation):
     
 class UserLogin(graphene.Mutation):
     class Arguments:
-        username = graphene.String()
+        username_or_email = graphene.String()
         password = graphene.String(required=True)
     
     token = graphene.Field(graphene.String)
     
-    def mutate(root, info, username, password):
-        user = None
-        if User.objects.filter(username=username).exists():
-            user = get_user(username)
-        elif User.objects.filter(email=username).exists():
-            user = get_user_with_email(username)
-        else:
-            not_found(f'Invalid username or password')
-            
+    def mutate(root, info, username_or_email, password):
+        user = fetch_user(username_or_email, 'Invalid username or password')
         if not user.check_password(password):
             not_found(f'Invalid username or password')
             

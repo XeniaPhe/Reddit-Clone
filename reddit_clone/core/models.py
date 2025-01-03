@@ -59,7 +59,7 @@ class Content(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     body = models.TextField(blank=True, default='')
-    publish_date = models.DateTimeField(auto_now_add=True)
+    publish_date = models.DateTimeField(default=timezone.now)
     content_type = models.IntegerField(choices=ContentType.choices)
     
     def is_comment(self):
