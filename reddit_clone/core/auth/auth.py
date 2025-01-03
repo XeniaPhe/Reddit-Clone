@@ -17,16 +17,36 @@ def create_jwt_token(user: User):
     
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-#TODO: add a blacklist to jwt tokens
-
+def optional_authentication(func):
+    @wraps(func)
+    def wrapper(root, info, *args, **kwargs):
+        auth_header = info.context.headers.get('Authorization')
+        
+        if not auth_header:
+            authentication_error('Authorization header missing')
+        if not auth_header.startswith('JWT '):
+            authentication_error('Authorization header must be a JWT token')
+        
+        jwt_token = auth_header[len('JWT '):]
+        
+        try:
+            payload = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+            username = payload['username']
+            info.context.user = get_user(username)
+            
+        except jwt.ExpiredSignatureError:
+            authentication_error('The JWT token has expired')
+        except jwt.exceptions.InvalidTokenError:
+            authentication_error('Invalid JWT token')
+            
+        return func(root, info, *args, **kwargs)
+    return wrapper
+    
 def require_authentication(require_admin=False):
     def decorator(func):
         @wraps(func)
         def wrapper(root, info, *args, **kwargs):
-            print(f"1:{info is None}")
-            
-            request = info.context.request
-            auth_header = request.headers.get('Authorization')
+            auth_header = info.context.headers.get('Authorization')
 
             if not auth_header:
                 authentication_error('Authorization header missing')
@@ -42,7 +62,7 @@ def require_authentication(require_admin=False):
                 if require_admin and not is_admin:
                     authorization_error(f'The user "{username}" does not have admin priviliges')
                 
-                request.user = get_user(username)
+                info.context.user = get_user(username)
                 
             except jwt.ExpiredSignatureError:
                 authentication_error('The JWT token has expired')
@@ -57,7 +77,7 @@ def require_authorization(community_param, required_role=MEMBER):
     def decorator(func):
         @wraps(func)
         def wrapper(root, info, *args, **kwargs):
-            user = info.context.request.user
+            user = info.context.user
             if not user:
                 internal_server_error('The request does not contain a valid user, '
                                     + 'authentication may have failed or user information is missing')

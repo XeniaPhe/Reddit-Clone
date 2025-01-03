@@ -80,8 +80,7 @@ class UserSignup(graphene.Mutation):
         
     token = graphene.Field(graphene.String)
         
-    @classmethod
-    def mutate(cls, root, info, username, email, password):
+    def mutate(root, info, username, email, password):
         user = User.objects.create_user(username, email, password)
         token = create_jwt_token(user)
         return UserSignup(token=token)
@@ -93,8 +92,7 @@ class UserLogin(graphene.Mutation):
     
     token = graphene.Field(graphene.String)
     
-    @classmethod
-    def mutate(cls, root, info, username, password):
+    def mutate(root, info, username, password):
         user = None
         if User.objects.filter(username=username).exists():
             user = get_user(username)
@@ -115,11 +113,9 @@ class DeleteUser(graphene.Mutation):
     
     success = graphene.Field(graphene.Boolean)
     
-    @classmethod
     @require_authentication(require_admin=False)
-    def mutate(cls, root, info, *args, **kwargs):
-        print(f"2:{info is None}")
-        info.context.request.user.delete()
+    def mutate(root, info, *args, **kwargs):
+        info.context.user.delete()
         return DeleteUser(success=True)
     
 class UserMutation(graphene.ObjectType):
