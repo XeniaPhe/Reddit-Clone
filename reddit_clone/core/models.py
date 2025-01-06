@@ -35,6 +35,7 @@ class User(AbstractBaseUser):
 class Community(models.Model):
     name = models.CharField(max_length=48, primary_key=True)
     description = models.TextField(blank=True)
+    created_at = models.DateField(default=timezone.now)
     users = models.ManyToManyField(to=User, through='Membership', related_name='communities')
     
     def __str__(self):
@@ -94,7 +95,7 @@ class Comment(models.Model):
     content = models.OneToOneField(to=Content, on_delete=models.CASCADE, primary_key=True, default=get_comment_content)
     parent = models.ForeignKey(to=Content, on_delete=models.DO_NOTHING, related_name='children')
     user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='comments')
-    post = models.ForeignKey(to=Post, on_delete=models.DO_NOTHING, related_name='comments')
+    post = models.ForeignKey(to=Post, on_delete=models.CASCADE, related_name='comments')
 
 class Vote(models.Model):
     class VoteType(models.IntegerChoices):

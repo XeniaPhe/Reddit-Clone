@@ -18,3 +18,6 @@ def create_post(title: str, body: str, user: User, community: Community):
 
 def get_posts_with_total_votes(**filters):
     return Post.objects.filter(**filters).annotate(total_votes=Sum('content__votes__vote'))
+
+def get_post_with_total_votes(id: UUID):
+    return get_posts_with_total_votes(id=id).first()

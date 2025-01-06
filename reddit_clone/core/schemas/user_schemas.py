@@ -23,7 +23,8 @@ class UserType(DjangoObjectType):
             'join_date': ops.DATE_OPERATORS,
             'score': ops.NUMERIC_OPERATORS,
         }
-        
+    
+    #communities = graphene.List()
     #posts = graphene.List()
     #comments = graphene.List()
     
@@ -33,37 +34,28 @@ class UserType(DjangoObjectType):
     
 class UserQuery(graphene.ObjectType):
     user_by_username = graphene.Field(UserType, username=graphene.Argument(graphene.String, required=True))
-    user_by_post = graphene.Field(UserType, post_id=graphene.Argument(graphene.UUID, required=True))
-    user_by_comment = graphene.Field(UserType, comment_id=graphene.Argument(graphene.UUID, required=True))
     users = get_list(UserType, filter=True, paginate=True,
-                    community_name=graphene.Argument(graphene.String, required=False))
+                    of_community=graphene.Argument(graphene.String, required=False))
     
     user_role = graphene.Field(CommunityRoleEnum,
-                               username=graphene.Argument(graphene.String, required=True),
-                               community_name=graphene.Argument(graphene.String, required=True))
+                               of_user=graphene.Argument(graphene.String, required=True),
+                               in_community=graphene.Argument(graphene.String, required=True))
     
     def resolve_user_by_username(root, info, username):
         return get_user(username)
     
-    def resolve_user_by_post(root, info, post_id):
-        return get_post(post_id).user
-    
-    def resolve_user_by_comment(root, info, comment_id):
-        return get_comment(comment_id).user
-    
     @filter_and_paginate(UserType)
-    def resolve_users(root, info, *args, **kwargs):
-        community_name = kwargs.get('community_name', None)
-        if community_name is None:
+    def resolve_users(root, info, of_community=None):
+        if not of_community:
             return User.objects.all()
         
-        assert_community_exists(community_name)
-        return User.objects.filter(memberships__community__name=community_name)
+        assert_community_exists(of_community)
+        return User.objects.filter(communities__name=of_community)
     
-    def resolve_user_role(root, info, username, community_name):
-        assert_user_exists(username)
-        community = get_community(community_name)
-        membership = community.memberships.filter(user__username=username)
+    def resolve_user_role(root, info, of_user, in_community):
+        assert_user_exists(of_user)
+        community = get_community(in_community)
+        membership = community.memberships.filter(user__username=in_community)
         
         if not membership.exists():
             return CommunityRoleEnum.GUEST
@@ -104,7 +96,7 @@ class DeleteUser(graphene.Mutation):
     
     success = graphene.Field(graphene.Boolean)
     
-    @require_authentication(require_admin=False)
+    @require_authentication()
     def mutate(root, info, *args, **kwargs):
         info.context.user.delete()
         return DeleteUser(success=True)

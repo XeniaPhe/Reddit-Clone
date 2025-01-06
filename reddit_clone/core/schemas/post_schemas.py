@@ -2,16 +2,15 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import Post
+from core.models import Post, Content
 from core.schemas.content_type import ContentType
-from core.custom_errors import not_found
-from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
-from core.auth.auth import require_authentication, create_jwt_token
-
 from core.services.user_service import assert_user_exists
-from core.services.community_service import assert_community_exists
-from core.services.post_service import get_post
+from core.services.community_service import get_community, assert_community_exists
+from core.services.post_service import get_post, create_post
+
+from core.utils.query_utils import get_list, filter_and_paginate
+from core.auth.roles import MEMBER
+from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
 
 class PostType(DjangoObjectType):
     class Meta:
@@ -34,14 +33,10 @@ class PostQuery(graphene.ObjectType):
         return get_post(id)
     
     @filter_and_paginate(PostType)
-    def resolve_posts(root, info, *args, **kwargs):
-        posts = Post.objects.all()
-        username = kwargs.get('username', None)
-        community_name = kwargs.get('community_name', None)
-                
+    def resolve_posts(root, info, username=None, community_name=None):
         if username:
             assert_user_exists(username)
-            posts = posts = posts.filter(user__username=username)
+            posts = Post.objects.filter(user__username=username)
         if community_name:
             assert_community_exists(community_name)
             posts = posts.filter(community__name=community_name)
@@ -50,13 +45,54 @@ class PostQuery(graphene.ObjectType):
     
 class CreatePost(graphene.Mutation):
     class Arguments:
-        pass
+        community_name = graphene.String(required=True)
+        title = graphene.String(required=True)
+        body = graphene.String(required=False)
+        
+    success = graphene.Field(graphene.Boolean)
+    
+    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
+    @require_authentication()
+    def mutate(root, info, community_name, title, body=''):
+        user = info.context.user
+        community = get_community(community_name)
+        create_post(title, body, user, community)
+        return CreatePost(success=True)
     
 class UpdatePost(graphene.Mutation):
-    pass
-
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+        updated_title = graphene.String(required=False)
+        updated_body = graphene.String(required=False)
+    
+    success = graphene.Field(graphene.Boolean)
+    
+    @require_authentication()
+    def mutate(root, info, post_id, updated_title=None, updated_body=None):
+        user = info.context.user
+        post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=False)
+        
+        if updated_title:
+            post.title = updated_title
+        
+        if updated_body:
+            post.content.body = updated_body
+        
+        post.save()
+        return UpdatePost(success=True)
+        
+        
 class DeletePost(graphene.Mutation):
-    pass
+    class Arguments:
+        post_id = graphene.UUID(required=True)
+    
+    success = graphene.Field(graphene.Boolean)
+    
+    @require_authentication()
+    def mutate(root, info, post_id):
+        post = require_content_authorization(info.context.user, post_id, Content.ContentType.POST, admin_override=False)
+        post.delete()
+        return DeletePost(success=True)
     
 class PostMutation(graphene.ObjectType):
     create_post = CreatePost.Field()
