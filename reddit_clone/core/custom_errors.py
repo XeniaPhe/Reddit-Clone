@@ -31,6 +31,9 @@ def user_not_found(username: str):
 def community_not_found(name: str):
     not_found(f'Community "{name}" does not exist')
     
+def content_not_found(id: UUID):
+    not_found(f'Content "{id}" does not exist')
+
 def post_not_found(id: UUID):
     not_found(f'Post "{id}" does not exist')
     

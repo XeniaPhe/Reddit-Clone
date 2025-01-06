@@ -34,7 +34,7 @@ class User(AbstractBaseUser):
     
 class Community(models.Model):
     name = models.CharField(max_length=48, primary_key=True)
-    description = models.TextField(blank=True)
+    desc = models.TextField(blank=True)
     created_at = models.DateField(default=timezone.now)
     users = models.ManyToManyField(to=User, through='Membership', related_name='communities')
     
@@ -106,7 +106,7 @@ class Vote(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     vote = models.IntegerField(choices=VoteType.choices, default=VoteType.NONVOTE)
     user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='votes')
-    content = models.ForeignKey(to=Content, on_delete=models.DO_NOTHING, related_name='votes')
+    content = models.ForeignKey(to=Content, on_delete=models.CASCADE, related_name='votes')
 
     class Meta:
         unique_together = [['user', 'content']]

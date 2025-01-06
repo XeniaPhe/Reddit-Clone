@@ -26,20 +26,20 @@ class PostType(DjangoObjectType):
 class PostQuery(graphene.ObjectType):
     post_by_id = graphene.Field(PostType, id=graphene.Argument(graphene.UUID, required=True))
     posts = get_list(PostType, filter=True, paginate=True,
-                     username=graphene.Argument(graphene.String, required=False),
-                     community_name=graphene.Argument(graphene.String, required=False))
+                     of_user=graphene.Argument(graphene.String, required=False),
+                     of_community=graphene.Argument(graphene.String, required=False))
     
     def resolve_post_by_id(root, info, id):
         return get_post(id)
     
     @filter_and_paginate(PostType)
-    def resolve_posts(root, info, username=None, community_name=None):
-        if username:
-            assert_user_exists(username)
-            posts = Post.objects.filter(user__username=username)
-        if community_name:
-            assert_community_exists(community_name)
-            posts = posts.filter(community__name=community_name)
+    def resolve_posts(root, info, of_user=None, of_community=None):
+        if of_user:
+            assert_user_exists(of_user)
+            posts = Post.objects.filter(user__username=of_user)
+        if of_community:
+            assert_community_exists(of_community)
+            posts = posts.filter(community__name=of_community)
             
         return posts
     
@@ -90,7 +90,8 @@ class DeletePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id):
-        post = require_content_authorization(info.context.user, post_id, Content.ContentType.POST, admin_override=False)
+        user = info.context.user
+        post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=True)
         post.delete()
         return DeletePost(success=True)
     

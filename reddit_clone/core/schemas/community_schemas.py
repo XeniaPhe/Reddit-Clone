@@ -16,22 +16,21 @@ from core.auth.auth import require_authentication, require_community_authorizati
 class CommunityType(DjangoObjectType):
     class Meta:
         model = Community
-        fields = ('name', 'description', 'created_at')
+        fields = ('name', 'desc', 'created_at',)
         filter_fields = {
             'name': ops.ID_OPERATORS,
-            'description': ops.STRING_OPERATORS,
+            'desc': ops.STRING_OPERATORS,
             'created_at': ops.DATE_OPERATORS,
         }
 
 class CommunityQuery(graphene.ObjectType):
     community_by_name = graphene.Field(CommunityType, name=graphene.Argument(graphene.String, required=True))
     communities = get_list(CommunityType, filter=True, paginate=True,
-                    of_user=graphene.Argument(graphene.String, required=False))
+                     of_user=graphene.Argument(graphene.String, required=False))
     
     def resolve_community_by_name(root, info, name):
         return get_community(name=name)
     
-    @filter_and_paginate(CommunityType)
     def resolve_communities(root, info, of_user=None):
         if not of_user:
             return Community.objects.all()
@@ -41,8 +40,8 @@ class CommunityQuery(graphene.ObjectType):
     
 class CreateCommunity(graphene.Mutation):
     class Arguments:
-        name = graphene.Field(graphene.String, required=True)
-        description = graphene.Field(graphene.String, required=False)
+        name = graphene.String(required=True)
+        description = graphene.String(required=False)
         
     success = graphene.Field(graphene.Boolean)
     
@@ -55,8 +54,8 @@ class CreateCommunity(graphene.Mutation):
     
 class UpdateCommunity(graphene.Mutation):
     class Arguments:
-        name = graphene.Field(graphene.String, required=True)
-        updated_description = graphene.Field(graphene.String, required=False)
+        name = graphene.String(required=True)
+        updated_description = graphene.String(required=False)
         
     success = graphene.Field(graphene.Boolean)
     
@@ -65,14 +64,14 @@ class UpdateCommunity(graphene.Mutation):
     def mutate(root, info, name, updated_description=None):
         community = get_community(name)
         if updated_description:
-            community.description = updated_description
+            community.desc = updated_description
             community.save()
         
         return UpdateCommunity(success=True)
     
 class DeleteCommunity(graphene.Mutation):
     class Arguments:
-        name = graphene.Field(graphene.String, required=True)
+        name = graphene.String(required=True)
         
     success = graphene.Field(graphene.Boolean)
     
@@ -83,7 +82,6 @@ class DeleteCommunity(graphene.Mutation):
         community.delete()
         return DeleteCommunity(success=True)
     
-
 class CommunityMutation(graphene.ObjectType):
     create_community = CreateCommunity.Field()
     update_community = UpdateCommunity.Field()

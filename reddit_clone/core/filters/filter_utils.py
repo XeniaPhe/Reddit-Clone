@@ -9,6 +9,7 @@ from core.custom_errors import filter_error, bad_request, internal_server_error
 
 _django_to_graphene_type_map = {
     models.CharField: graphene.String,
+    models.TextField: graphene.String,
     models.EmailField: graphene.String,
     models.JSONField: graphene.String,
     models.FileField: graphene.String,
