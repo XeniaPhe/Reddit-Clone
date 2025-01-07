@@ -2,15 +2,12 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import Community, Membership
-from core.services.user_service import fetch_user, get_user, assert_user_exists
-from core.services.community_service import get_community, create_community
-from core.services.post_service import get_post
-from core.services.comment_service import get_comment
+from core.models import Community
+from core.services.user_service import assert_user_exists, get_user
+from core.services.community_service import get_community, create_community, promote_to_moderator, demote_to_member
 
-from core.custom_errors import not_found
 from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum, FOUNDER
+from core.auth.roles import FOUNDER
 from core.auth.auth import require_authentication, require_community_authorization
 
 class CommunityType(DjangoObjectType):
@@ -83,9 +80,39 @@ class DeleteCommunity(graphene.Mutation):
         community.delete()
         return DeleteCommunity(success=True)
 
-
+class PromoteToModerator(graphene.Mutation):
+    class Arguments:
+        username = graphene.String(required=True)
+        community_name = graphene.String(required=True)
+        
+    success = graphene.Field(graphene.Boolean)
+    
+    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
+    @require_authentication()
+    def mutate(root, info, username, community_name, *args, **kwargs):
+        community = get_community(community_name)
+        user = get_user(username)
+        promote_to_moderator(community, user)
+        return PromoteToModerator(success=True)
+    
+class DemoteToMember(graphene.Mutation):
+    class Arguments:
+        username = graphene.String(required=True)
+        community_name = graphene.String(required=True)
+        
+    success = graphene.Field(graphene.Boolean)
+    
+    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
+    @require_authentication()
+    def mutate(root, info, username, community_name, *args, **kwargs):
+        community = get_community(community_name)
+        user = get_user(username)
+        demote_to_member(community, user)
+        return DemoteToMember(success=True)
 
 class CommunityMutation(graphene.ObjectType):
     create_community = CreateCommunity.Field()
     update_community = UpdateCommunity.Field()
     delete_community = DeleteCommunity.Field()
+    promote_to_moderator = PromoteToModerator.Field()
+    demote_to_member = DemoteToMember.Field()

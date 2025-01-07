@@ -81,7 +81,6 @@ class UpdatePost(graphene.Mutation):
         post.save()
         return UpdatePost(success=True)
         
-        
 class DeletePost(graphene.Mutation):
     class Arguments:
         post_id = graphene.UUID(required=True)
@@ -92,7 +91,7 @@ class DeletePost(graphene.Mutation):
     def mutate(root, info, post_id):
         user = info.context.user
         post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=True)
-        post.delete()
+        post.content.delete()
         return DeletePost(success=True)
     
 class PostMutation(graphene.ObjectType):

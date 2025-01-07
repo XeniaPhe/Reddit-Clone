@@ -100,7 +100,7 @@ class DeleteComment(graphene.Mutation):
     def mutate(root, info, comment_id):
         user = info.context.user
         comment = require_content_authorization(user, comment_id, Content.ContentType.COMMENT, admin_override=True)
-        comment.delete()
+        comment.content.delete()
         return DeleteComment(success=True)
     
 class CommentMutation(graphene.ObjectType):
