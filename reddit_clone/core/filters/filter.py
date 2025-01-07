@@ -34,3 +34,8 @@ def filter(graphene_model_type: Type[DjangoObjectType]):
             return filter_queryset(graphene_model_type, queryset, **kwargs)
         return wrapper
     return decorator
+
+def test(a, b, c):
+    pass
+
+test(b=5, a=1, c=5)

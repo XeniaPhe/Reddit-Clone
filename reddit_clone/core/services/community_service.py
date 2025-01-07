@@ -12,7 +12,7 @@ def assert_community_exists(name: str):
     get_community(name)
     
 def create_community(user: User, name: str, description: str):
-    community = Community.objects.create(name=name, description=description)
+    community = Community.objects.create(name=name, desc=description)
     Membership.objects.create(role=FOUNDER, user=user, community=community)
     return community
 
@@ -30,7 +30,6 @@ def join_or_leave_community(user: User, community: Community) -> str:
     membership.save()
     return membership.role
 
-    
 def promote_to_moderator(community: Community, user: User):
     membership = Membership.objects.filter(user__username=user.username, community__name=community.name).first()
     

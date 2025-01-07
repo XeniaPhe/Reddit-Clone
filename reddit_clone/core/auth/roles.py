@@ -17,6 +17,7 @@ class CommunityRoleEnum(graphene.Enum):
     MEMBER = MEMBER
     MODERATOR = MODERATOR
     FOUNDER = FOUNDER
+    ADMIN = ADMIN
     
 _ROLE_HIERARCHY = [ADMIN, FOUNDER, MODERATOR, MEMBER, GUEST]
 

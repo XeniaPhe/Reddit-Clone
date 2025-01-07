@@ -16,6 +16,8 @@ class PostType(DjangoObjectType):
     class Meta:
         model = Post
         fields = ('content', 'title', 'user', 'community',)
+
+    class FilterMeta:
         filter_fields = {
             'content': ops.ID_OPERATORS,
             'title': ops.STRING_OPERATORS,

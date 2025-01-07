@@ -14,6 +14,8 @@ class CommunityType(DjangoObjectType):
     class Meta:
         model = Community
         fields = ('name', 'desc', 'created_at',)
+        
+    class FilterMeta:
         filter_fields = {
             'name': ops.ID_OPERATORS,
             'desc': ops.STRING_OPERATORS,

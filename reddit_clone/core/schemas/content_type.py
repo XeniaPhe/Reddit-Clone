@@ -8,6 +8,8 @@ class ContentType(DjangoObjectType):
     class Meta:
         model = Content
         fields = ('id', 'body', 'publish_date',)
+    
+    class FilterMeta:
         filter_fields = {
             'id': ops.ID_OPERATORS,
             'body': ops.STRING_OPERATORS,

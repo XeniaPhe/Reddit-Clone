@@ -3,25 +3,32 @@ from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
 from core.models import User
-from core.services.user_service import fetch_user, get_user, assert_user_exists
+from core.services.user_service import fetch_user, get_user
 from core.services.community_service import get_community, assert_community_exists, join_or_leave_community
 from core.services.content_service import vote_content
 
 from core.custom_errors import not_found
 from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import CommunityRoleEnum
+from core.auth.roles import CommunityRoleEnum, ADMIN, GUEST
 from core.auth.auth import require_authentication, create_jwt_token
 
 class UserType(DjangoObjectType):
     class Meta:
         model = User
         fields = ('username', 'email', 'join_date', 'karma',)
+        
+    class FilterMeta:
         filter_fields = {
             'username': ops.ID_OPERATORS,
             'email': (ops.EXACT,),
             'join_date': ops.DATE_OPERATORS,
             'karma': ops.NUMERIC_OPERATORS,
         }
+        
+    admin = graphene.Boolean()
+    
+    def resolve_admin(root, info):
+        return root.is_superuser
     
     #communities = graphene.List()
     #posts = graphene.List()
@@ -36,7 +43,7 @@ class UserQuery(graphene.ObjectType):
     users = get_list(UserType, filter=True, paginate=True,
                     of_community=graphene.Argument(graphene.String, required=False))
     
-    user_role = graphene.Field(CommunityRoleEnum,
+    user_role = graphene.Field(graphene.List(CommunityRoleEnum),
                                of_user=graphene.Argument(graphene.String, required=True),
                                in_community=graphene.Argument(graphene.String, required=True))
     
@@ -52,14 +59,18 @@ class UserQuery(graphene.ObjectType):
         return User.objects.filter(communities__name=of_community)
     
     def resolve_user_role(root, info, of_user, in_community):
-        assert_user_exists(of_user)
+        user = get_user(of_user)
         community = get_community(in_community)
-        membership = community.memberships.filter(user__username=in_community)
+        membership = community.memberships.filter(user__username=of_user).first()
         
-        if not membership.exists():
-            return CommunityRoleEnum.GUEST
+        roles = [ADMIN] if user.is_superuser else []
         
-        return CommunityRoleEnum(membership.first().role)
+        if not membership:
+            roles.append(GUEST)
+        else:
+            roles.append(membership.role)
+        
+        return roles
     
 class UserSignup(graphene.Mutation):
     class Arguments:

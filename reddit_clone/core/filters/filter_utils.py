@@ -54,17 +54,14 @@ def _to_original_field_name(graphene_model_type: Type[DjangoObjectType], graphql
     return original_field_name
 
 def _get_graphene_model_fields(graphene_model_type: Type[DjangoObjectType]):
-    graphene_model_fields = getattr(graphene_model_type._meta, 'fields', None)
-    graphene_model_fields = tuple(graphene_model_fields.keys()) if graphene_model_fields else None
+    graphene_fields = getattr(graphene_model_type._meta, 'fields', None)
     
-    if graphene_model_fields:
-        if (isinstance(graphene_model_fields, tuple) and all(isinstance(field, str) for field in graphene_model_fields)):
-            return graphene_model_fields
-        elif isinstance(graphene_model_fields, str) and graphene_model_fields == '__all__':
-            return [field.name for field in graphene_model_type._meta.model._meta.get_fields()]
+    if graphene_fields:
+        return [graphene_field for graphene_field in list(graphene_fields.keys())
+                                 if not hasattr(graphene_model_type, graphene_field)]
         
     graphene_model_exclude = getattr(graphene_model_type._meta, 'exclude', None)
-    graphene_model_exclude = tuple(graphene_model_exclude) if graphene_model_exclude else None
+    graphene_model_exclude = list(graphene_model_exclude) if graphene_model_exclude else None
     
     if graphene_model_exclude:
         return [field.name for field in graphene_model_type._meta.model._meta.get_fields()
@@ -126,7 +123,7 @@ def _get_graphene_argument_type(filter_operator: str, graphene_field_type: Type)
 def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
     django_model_type = graphene_model_type._meta.model
     graphene_fields = _get_graphene_model_fields(graphene_model_type)
-    filter_fields = graphene_model_type._meta.filter_fields
+    filter_fields = getattr(graphene_model_type.FilterMeta, 'filter_fields', None)
     filter_fields = {} if not filter_fields else filter_fields
     
     filter_arguments = {}
@@ -135,7 +132,7 @@ def get_graphene_filter_arguments(graphene_model_type: Type[DjangoObjectType]):
         if filtered_field not in graphene_fields:
             filter_error(f'Field "{filtered_field}" specified in "filter_fields" does not exist in the "fields" attribute.\n'
                         f'Make sure the field exists in the "{django_model_type.__name__}" model and is correctly listed in the "fields" attribute of the DjangoObjectType Meta class.')
-            
+        
         graphene_field_type = _get_graphene_field_type(filtered_field, django_model_type)
         
         for filter_operator in filter_operators:
@@ -221,7 +218,7 @@ def get_django_orderby_arguments(graphene_model_type: Type[DjangoObjectType], **
             original_field_name = _to_original_field_name(graphene_model_type, orderby_field.strip('-'))
             orderby_arguments.append(f'-{original_field_name}' if is_descending else original_field_name)
     else:
-        default_ordering = getattr(graphene_model_type._meta, 'ordering', None)
+        default_ordering = getattr(graphene_model_type.FilterMeta, 'ordering', None)
         if default_ordering:
             default_ordering = [default_ordering] if isinstance(default_ordering, str) else default_ordering
             orderby_arguments.extend(default_ordering)

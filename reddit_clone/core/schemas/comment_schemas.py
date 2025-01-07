@@ -18,6 +18,8 @@ class CommentType(DjangoObjectType):
     class Meta:
         model = Comment
         fields = ('content', 'parent', 'user', 'post',)
+        
+    class FilterMeta:
         filter_fields = {
             'content': ops.ID_OPERATORS,
             'parent': ops.ID_OPERATORS,
