@@ -33,7 +33,7 @@ class PostQuery(graphene.ObjectType):
         return get_post(id)
     
     @filter_and_paginate(PostType)
-    def resolve_posts(root, info, of_user=None, of_community=None):
+    def resolve_posts(root, info, of_user=None, of_community=None, *args, **kwargs):
         if of_user:
             assert_user_exists(of_user)
             posts = Post.objects.filter(user__username=of_user)

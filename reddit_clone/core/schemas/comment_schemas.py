@@ -36,7 +36,7 @@ class CommentQuery(graphene.ObjectType):
         return get_comment(id)
     
     @filter_and_paginate(CommentType)
-    def resolve_comments(root, info, of_user=None, of_post=None, of_parent=None):
+    def resolve_comments(root, info, of_user=None, of_post=None, of_parent=None, *args, **kwargs):
         if of_user:
             assert_user_exists(of_user)
             comments = Comment.objects.filter(user__username=of_user)

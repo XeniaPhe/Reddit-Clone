@@ -10,7 +10,7 @@ class User(AbstractBaseUser):
     username = models.CharField(max_length=48, primary_key=True)
     email = models.EmailField(unique=True)
     join_date = models.DateField(default=timezone.now)
-    score = models.IntegerField(default=0)
+    karma = models.IntegerField(default=0)
     
     last_login = None
     
@@ -68,10 +68,6 @@ class Content(models.Model):
     
     def is_post(self):
         return self.content_type == Content.ContentType.POST
-    
-    def get_related_object(self):
-        manager = Post.objects if self.is_post() else Comment.objects
-        return manager.get(id=self.id)
     
     def __str__(self):
         return self.body[:48]

@@ -13,10 +13,10 @@ DB_ROLE_CHOICES = {
 ALL_ROLES = DB_ROLE_CHOICES | { ADMIN: 'Admin', }
 
 class CommunityRoleEnum(graphene.Enum):
-    GUEST = 'Guest'
-    MEMBER = 'Member'
-    MODERATOR = 'Moderator'
-    FOUNDER = 'Founder'
+    GUEST = GUEST
+    MEMBER = MEMBER
+    MODERATOR = MODERATOR
+    FOUNDER = FOUNDER
     
 _ROLE_HIERARCHY = [ADMIN, FOUNDER, MODERATOR, MEMBER, GUEST]
 

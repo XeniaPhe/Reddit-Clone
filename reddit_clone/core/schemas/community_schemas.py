@@ -31,7 +31,8 @@ class CommunityQuery(graphene.ObjectType):
     def resolve_community_by_name(root, info, name):
         return get_community(name=name)
     
-    def resolve_communities(root, info, of_user=None):
+    @filter_and_paginate(CommunityType)
+    def resolve_communities(root, info, of_user=None, *args, **kwargs):
         if not of_user:
             return Community.objects.all()
         
@@ -81,7 +82,9 @@ class DeleteCommunity(graphene.Mutation):
         community = get_community(name)
         community.delete()
         return DeleteCommunity(success=True)
-    
+
+
+
 class CommunityMutation(graphene.ObjectType):
     create_community = CreateCommunity.Field()
     update_community = UpdateCommunity.Field()

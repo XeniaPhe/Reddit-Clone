@@ -4,24 +4,23 @@ from graphene_django import DjangoObjectType
 import core.filters.operators as ops
 from core.models import User
 from core.services.user_service import fetch_user, get_user, assert_user_exists
-from core.services.community_service import get_community, assert_community_exists
-from core.services.post_service import get_post
-from core.services.comment_service import get_comment
+from core.services.community_service import get_community, assert_community_exists, join_or_leave_community
+from core.services.content_service import vote_content
 
 from core.custom_errors import not_found
 from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import DB_ROLE_CHOICES, CommunityRoleEnum
+from core.auth.roles import CommunityRoleEnum
 from core.auth.auth import require_authentication, create_jwt_token
 
 class UserType(DjangoObjectType):
     class Meta:
         model = User
-        fields = ('username', 'email', 'join_date', 'score',)
+        fields = ('username', 'email', 'join_date', 'karma',)
         filter_fields = {
             'username': ops.ID_OPERATORS,
             'email': (ops.EXACT,),
             'join_date': ops.DATE_OPERATORS,
-            'score': ops.NUMERIC_OPERATORS,
+            'karma': ops.NUMERIC_OPERATORS,
         }
     
     #communities = graphene.List()
@@ -45,7 +44,7 @@ class UserQuery(graphene.ObjectType):
         return get_user(username)
     
     @filter_and_paginate(UserType)
-    def resolve_users(root, info, of_community=None):
+    def resolve_users(root, info, of_community=None, *args, **kwargs):
         if not of_community:
             return User.objects.all()
         
@@ -60,7 +59,7 @@ class UserQuery(graphene.ObjectType):
         if not membership.exists():
             return CommunityRoleEnum.GUEST
         
-        return CommunityRoleEnum(DB_ROLE_CHOICES[membership.first().role])
+        return CommunityRoleEnum(membership.first().role)
     
 class UserSignup(graphene.Mutation):
     class Arguments:
@@ -75,7 +74,7 @@ class UserSignup(graphene.Mutation):
         token = create_jwt_token(user)
         return UserSignup(token=token)
     
-class UserLogin(graphene.Mutation):
+class UserSignin(graphene.Mutation):
     class Arguments:
         username_or_email = graphene.String()
         password = graphene.String(required=True)
@@ -88,7 +87,7 @@ class UserLogin(graphene.Mutation):
             not_found(f'Invalid username or password')
             
         token = create_jwt_token(user)
-        return UserLogin(token=token)
+        return UserSignin(token=token)
         
 class DeleteUser(graphene.Mutation):
     class Arguments:
@@ -100,8 +99,44 @@ class DeleteUser(graphene.Mutation):
     def mutate(root, info, *args, **kwargs):
         info.context.user.delete()
         return DeleteUser(success=True)
+
+class AlterCommunityMembership(graphene.Mutation):
+    class Arguments:
+        community_name = graphene.String(required=True)
+        pass
     
+    final_user_role = graphene.Field(CommunityRoleEnum)
+    
+    @require_authentication()
+    def mutate(root, info, community_name, *args, **kwargs):
+        user = info.context.user
+        community = get_community(community_name)
+        final_user_role = join_or_leave_community(user, community)
+        return AlterCommunityMembership(final_user_role=final_user_role)
+    
+class VoteEnum(graphene.Enum):
+    UPVOTE = 1
+    DOWNVOTE = -1
+
+class VoteContent(graphene.Mutation):
+    class Arguments:
+        content_id = graphene.UUID(required=True)
+        vote = graphene.Argument(VoteEnum, required=True)
+    
+    final_vote = graphene.Field(VoteEnum)
+    
+    @require_authentication()
+    def mutate(root, info, content_id, vote, *args, **kwargs):
+        user = info.context.user
+        final_vote_value = vote_content(content_id, user, vote)
+        final_vote = (VoteEnum.UPVOTE if final_vote_value == 1 
+                          else (VoteEnum.DOWNVOTE if final_vote_value == -1 else None))
+        
+        return VoteContent(final_vote=final_vote)
+        
 class UserMutation(graphene.ObjectType):
     user_signup = UserSignup.Field()
-    user_login = UserLogin.Field()
+    user_signin = UserSignin.Field()
     delete_user = DeleteUser.Field()
+    alter_community_membership = AlterCommunityMembership.Field()
+    vote_content = VoteContent.Field()
