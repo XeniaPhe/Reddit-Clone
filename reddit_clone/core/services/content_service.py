@@ -17,7 +17,7 @@ def get_related_object(content: Content):
 
 def vote_content(id: UUID, user: User, vote: int) -> int:
     content = get_content(id)
-    user_vote = content.votes.filter(user__username=user.username)
+    user_vote = content.votes.filter(user_id=user.username)
     
     if not user_vote.exists():
         user_vote = Vote.objects.create(user=user, content=content, vote=vote)

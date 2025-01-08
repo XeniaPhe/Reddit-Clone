@@ -36,7 +36,7 @@ class CommunityQuery(graphene.ObjectType):
             return Community.objects.all()
         
         assert_user_exists(of_user)
-        return Community.objects.filter(users__username=of_user)
+        return Community.objects.filter(users_id=of_user)
     
 class CreateCommunity(graphene.Mutation):
     class Arguments:
@@ -59,8 +59,8 @@ class UpdateCommunity(graphene.Mutation):
         
     success = graphene.Field(graphene.Boolean)
     
-    @require_community_authorization('name', required_role=FOUNDER, admin_override=False)
     @require_authentication()
+    @require_community_authorization('name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, name, updated_description=None):
         community = get_community(name)
         if updated_description:
@@ -75,8 +75,8 @@ class DeleteCommunity(graphene.Mutation):
         
     success = graphene.Field(graphene.Boolean)
     
-    @require_community_authorization('name', required_role=FOUNDER, admin_override=True)
     @require_authentication()
+    @require_community_authorization('name', required_role=FOUNDER, admin_override=True)
     def mutate(root, info, name):
         community = get_community(name)
         community.delete()
@@ -89,8 +89,8 @@ class PromoteToModerator(graphene.Mutation):
         
     success = graphene.Field(graphene.Boolean)
     
-    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     @require_authentication()
+    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
         community = get_community(community_name)
         user = get_user(username)
@@ -104,8 +104,8 @@ class DemoteToMember(graphene.Mutation):
         
     success = graphene.Field(graphene.Boolean)
     
-    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     @require_authentication()
+    @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
         community = get_community(community_name)
         user = get_user(username)

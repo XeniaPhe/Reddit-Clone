@@ -5,7 +5,7 @@ from core.custom_errors import post_not_found
 
 def get_post(id: UUID):
     try:
-        return Post.objects.get(id=id)
+        return Post.objects.get(pk=id)
     except Post.DoesNotExist:
         post_not_found(id)
         

@@ -74,7 +74,7 @@ def require_community_authorization(community_param, required_role=MEMBER, admin
         @wraps(func)
         def wrapper(root, info, *args, **kwargs):
             user = info.context.user
-            if not user:
+            if not user.is_authenticated:
                 internal_server_error('The request does not contain a valid user, '
                                     + 'authentication may have failed or user information is missing')
             

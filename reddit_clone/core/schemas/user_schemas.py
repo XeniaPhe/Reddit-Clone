@@ -2,8 +2,8 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import User
-from core.services.user_service import fetch_user, get_user
+from core.models import User, Membership
+from core.services.user_service import fetch_user, get_user, assert_user_exists
 from core.services.community_service import get_community, assert_community_exists, join_or_leave_community
 from core.services.content_service import vote_content
 
@@ -43,7 +43,7 @@ class UserQuery(graphene.ObjectType):
     users = get_list(UserType, filter=True, paginate=True,
                     of_community=graphene.Argument(graphene.String, required=False))
     
-    user_role = graphene.Field(graphene.List(CommunityRoleEnum),
+    user_role = graphene.Field(CommunityRoleEnum,
                                of_user=graphene.Argument(graphene.String, required=True),
                                in_community=graphene.Argument(graphene.String, required=True))
     
@@ -56,21 +56,13 @@ class UserQuery(graphene.ObjectType):
             return User.objects.all()
         
         assert_community_exists(of_community)
-        return User.objects.filter(communities__name=of_community)
+        return User.objects.filter(communities_id=of_community)
     
     def resolve_user_role(root, info, of_user, in_community):
-        user = get_user(of_user)
-        community = get_community(in_community)
-        membership = community.memberships.filter(user__username=of_user).first()
-        
-        roles = [ADMIN] if user.is_superuser else []
-        
-        if not membership:
-            roles.append(GUEST)
-        else:
-            roles.append(membership.role)
-        
-        return roles
+        assert_user_exists(of_user)
+        assert_community_exists(in_community)
+        membership = Membership.objects.filter(user_id=of_user, community_id=in_community).first()
+        return GUEST if not membership else membership.role
     
 class UserSignup(graphene.Mutation):
     class Arguments:
@@ -87,7 +79,7 @@ class UserSignup(graphene.Mutation):
     
 class UserSignin(graphene.Mutation):
     class Arguments:
-        username_or_email = graphene.String()
+        username_or_email = graphene.String(required=True)
         password = graphene.String(required=True)
     
     token = graphene.Field(graphene.String)
@@ -139,7 +131,7 @@ class VoteContent(graphene.Mutation):
     @require_authentication()
     def mutate(root, info, content_id, vote, *args, **kwargs):
         user = info.context.user
-        final_vote_value = vote_content(content_id, user, vote)
+        final_vote_value = vote_content(content_id, user, vote.value)
         final_vote = (VoteEnum.UPVOTE if final_vote_value == 1 
                           else (VoteEnum.DOWNVOTE if final_vote_value == -1 else None))
         

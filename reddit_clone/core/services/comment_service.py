@@ -5,7 +5,7 @@ from core.custom_errors import comment_not_found
 
 def get_comment(id: UUID):
     try:
-        return Comment.objects.get(id=id)
+        return Comment.objects.get(pk=id)
     except Comment.DoesNotExist:
         comment_not_found(id)
         

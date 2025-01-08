@@ -17,7 +17,7 @@ def create_community(user: User, name: str, description: str):
     return community
 
 def join_or_leave_community(user: User, community: Community) -> str:
-    membership = Membership.objects.filter(user__username=user.username, community__name=community.name).first()
+    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
     
     if not membership:
         Membership.objects.create(role=MEMBER, user=user, community=community)
@@ -31,7 +31,7 @@ def join_or_leave_community(user: User, community: Community) -> str:
     return membership.role
 
 def promote_to_moderator(community: Community, user: User):
-    membership = Membership.objects.filter(user__username=user.username, community__name=community.name).first()
+    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
     
     if membership and membership.role == MEMBER:
         membership.role = MODERATOR
@@ -40,7 +40,7 @@ def promote_to_moderator(community: Community, user: User):
         bad_request('Only a member of a community can be promoted to moderator')
         
 def demote_to_member(community: Community, user: User):
-    membership = Membership.objects.filter(user__username=user.username, community__name=community.name).first()
+    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
     
     if membership and membership.role == MODERATOR:
         membership.role = MEMBER

@@ -27,39 +27,30 @@ class PostType(DjangoObjectType):
         
 class PostQuery(graphene.ObjectType):
     post_by_id = graphene.Field(PostType, id=graphene.Argument(graphene.UUID, required=True))
-    posts = get_list(PostType, filter=True, paginate=True,
-                     of_user=graphene.Argument(graphene.String, required=False),
-                     of_community=graphene.Argument(graphene.String, required=False))
+    posts = get_list(PostType, filter=True, paginate=True)
     
     def resolve_post_by_id(root, info, id):
         return get_post(id)
     
     @filter_and_paginate(PostType)
-    def resolve_posts(root, info, of_user=None, of_community=None, *args, **kwargs):
-        if of_user:
-            assert_user_exists(of_user)
-            posts = Post.objects.filter(user__username=of_user)
-        if of_community:
-            assert_community_exists(of_community)
-            posts = posts.filter(community__name=of_community)
-            
-        return posts
-    
+    def resolve_posts(root, info, *args, **kwargs):
+        return Post.objects.all()
+        
 class CreatePost(graphene.Mutation):
     class Arguments:
         community_name = graphene.String(required=True)
         title = graphene.String(required=True)
         body = graphene.String(required=False)
         
-    success = graphene.Field(graphene.Boolean)
+    post_id = graphene.Field(graphene.UUID)
     
-    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     @require_authentication()
+    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, title, body=''):
         user = info.context.user
         community = get_community(community_name)
-        create_post(title, body, user, community)
-        return CreatePost(success=True)
+        post = create_post(title, body, user, community)
+        return CreatePost(post_id=post.content.id)
     
 class UpdatePost(graphene.Mutation):
     class Arguments:

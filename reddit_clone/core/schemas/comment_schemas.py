@@ -29,27 +29,14 @@ class CommentType(DjangoObjectType):
         
 class CommentQuery(graphene.ObjectType):
     comment_by_id = graphene.Field(CommentType, id=graphene.Argument(graphene.UUID, required=True))
-    comments = get_list(CommentType, filter=True, paginate=True,
-                     of_user=graphene.Argument(graphene.String, required=False),
-                     of_post=graphene.Argument(graphene.UUID, required=False),
-                     of_parent=graphene.Argument(graphene.UUID, required=False))
+    comments = get_list(CommentType, filter=True, paginate=True)
     
     def resolve_comment_by_id(root, info, id):
         return get_comment(id)
     
     @filter_and_paginate(CommentType)
-    def resolve_comments(root, info, of_user=None, of_post=None, of_parent=None, *args, **kwargs):
-        if of_user:
-            assert_user_exists(of_user)
-            comments = Comment.objects.filter(user__username=of_user)
-        if of_post:
-            assert_post_exists(of_post)
-            comments = comments.filter(post__id=of_post)
-        if of_parent:
-            assert_content_exists(of_parent)
-            comments = comments.filter(parent__id=of_parent)
-        
-        return comments
+    def resolve_comments(root, info, *args, **kwargs):
+        return Comment.objects.all()
     
 class CreateComment(graphene.Mutation):
     class Arguments:
@@ -58,20 +45,21 @@ class CreateComment(graphene.Mutation):
         parent_id = graphene.UUID(required=False)
         body = graphene.String(required=True)
         
-    success = graphene.Field(graphene.Boolean)
+    comment_id = graphene.Field(graphene.UUID)
     
-    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     @require_authentication()
+    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, post_id, body, parent_id=None):
         user = info.context.user
         post = get_post(post_id)
         
         if post.community.name != community_name:
             bad_request('The post was shared in a different community than specified')
-            
+        
+        parent_id = post_id if not parent_id else parent_id        
         parent = get_content(parent_id)
-        create_comment(body, parent, user, post)
-        return CreateComment(success=True)
+        comment = create_comment(body, parent, user, post)
+        return CreateComment(comment_id = comment.content.id)
                 
     
 class UpdateComment(graphene.Mutation):
