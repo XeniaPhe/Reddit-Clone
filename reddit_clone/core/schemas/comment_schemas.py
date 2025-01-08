@@ -2,17 +2,16 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import Comment, Content
-from core.schemas.content_type import ContentType
-from core.services.user_service import assert_user_exists
-from core.services.content_service import get_content, assert_content_exists
-from core.services.post_service import assert_post_exists, get_post
-from core.services.comment_service import get_comment, create_comment
-
 from core.custom_errors import bad_request
 from core.utils.query_utils import get_list, filter_and_paginate
 from core.auth.roles import MEMBER
 from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
+
+from core.models import Comment, Content
+from core.schemas.content_type import ContentType
+from core.services.content_service import get_content
+from core.services.post_service import get_post
+from core.services.comment_service import get_comment, create_comment
 
 class CommentType(DjangoObjectType):
     class Meta:

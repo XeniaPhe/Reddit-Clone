@@ -2,15 +2,15 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
+from core.custom_errors import not_found
+from core.utils.query_utils import get_list, filter_and_paginate
+from core.auth.roles import CommunityRoleEnum, GUEST
+from core.auth.auth import require_authentication, create_jwt_token
+
 from core.models import User, Membership
 from core.services.user_service import fetch_user, get_user, assert_user_exists
 from core.services.community_service import get_community, assert_community_exists, join_or_leave_community
 from core.services.content_service import vote_content
-
-from core.custom_errors import not_found
-from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import CommunityRoleEnum, ADMIN, GUEST
-from core.auth.auth import require_authentication, create_jwt_token
 
 class UserType(DjangoObjectType):
     class Meta:

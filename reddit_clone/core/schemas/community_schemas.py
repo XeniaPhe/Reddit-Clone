@@ -2,13 +2,13 @@ import graphene
 from graphene_django import DjangoObjectType
 
 import core.filters.operators as ops
-from core.models import Community
-from core.services.user_service import assert_user_exists, get_user
-from core.services.community_service import get_community, create_community, promote_to_moderator, demote_to_member
-
 from core.utils.query_utils import get_list, filter_and_paginate
 from core.auth.roles import FOUNDER
 from core.auth.auth import require_authentication, require_community_authorization
+
+from core.models import Community
+from core.services.user_service import assert_user_exists, get_user
+from core.services.community_service import get_community, create_community, promote_to_moderator, demote_to_member
 
 class CommunityType(DjangoObjectType):
     class Meta:
