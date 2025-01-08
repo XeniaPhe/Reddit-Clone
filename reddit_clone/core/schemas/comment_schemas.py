@@ -8,10 +8,10 @@ from core.auth.roles import MEMBER
 from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
 
 from core.models import Comment, Content
-from core.schemas.content_type import ContentType
 from core.services.content_service import get_content
 from core.services.post_service import get_post
 from core.services.comment_service import get_comment, create_comment
+from core.schemas.common import ContentType
 
 class CommentType(DjangoObjectType):
     class Meta:

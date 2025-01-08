@@ -23,6 +23,9 @@ def create_jwt_token(user: User):
 def optional_authentication(func):
     @wraps(func)
     def wrapper(root, info, *args, **kwargs):
+        if info.context.user.is_authenticated:
+            return func(root, info, *args, **kwargs)
+        
         auth_header = info.context.headers.get('Authorization')
         
         if auth_header and auth_header.startswith('JWT '):
@@ -42,6 +45,9 @@ def require_authentication(require_admin=False):
     def decorator(func):
         @wraps(func)
         def wrapper(root, info, *args, **kwargs):
+            if info.context.user.is_authenticated:
+                return func(root, info, *args, **kwargs)
+        
             auth_header = info.context.headers.get('Authorization')
 
             if not auth_header:

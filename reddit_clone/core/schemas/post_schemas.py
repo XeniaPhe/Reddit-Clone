@@ -4,12 +4,17 @@ from graphene_django import DjangoObjectType
 import core.filters.operators as ops
 from core.utils.query_utils import get_list, filter_and_paginate
 from core.auth.roles import MEMBER
-from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
+from core.auth.auth import (
+    require_authentication,
+    require_community_authorization,
+    require_content_authorization,
+    optional_authentication,
+    )
 
 from core.models import Post, Content
-from core.schemas.content_type import ContentType
 from core.services.community_service import get_community
 from core.services.post_service import get_post, create_post
+from core.schemas.common import ContentType
 
 class PostType(DjangoObjectType):
     class Meta:
@@ -31,6 +36,7 @@ class PostQuery(graphene.ObjectType):
     def resolve_post_by_id(root, info, id):
         return get_post(id)
     
+    @optional_authentication
     @filter_and_paginate(PostType)
     def resolve_posts(root, info, *args, **kwargs):
         return Post.objects.all()
