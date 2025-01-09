@@ -12,7 +12,7 @@ from core.auth.auth import (
     )
 
 from core.models import Post, Content
-from core.services.community_service import get_community
+from core.services.community_service import assert_community_exists
 from core.services.post_service import get_post, create_post
 from core.schemas.common import ContentType
 
@@ -52,9 +52,8 @@ class CreatePost(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, title, body=''):
-        user = info.context.user
-        community = get_community(community_name)
-        post = create_post(title, body, user, community)
+        assert_community_exists(community_name)
+        post = create_post(title, body, info.context.user, community_name)
         return CreatePost(post_id=post.content.id)
     
 class UpdatePost(graphene.Mutation):
@@ -69,14 +68,19 @@ class UpdatePost(graphene.Mutation):
     def mutate(root, info, post_id, updated_title=None, updated_body=None):
         user = info.context.user
         post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=False)
+        update = False
         
         if updated_title:
             post.title = updated_title
+            update = True
         
         if updated_body:
             post.content.body = updated_body
+            update = True
+            
+        if update:
+            post.save()
         
-        post.save()
         return UpdatePost(success=True)
         
 class DeletePost(graphene.Mutation):
@@ -87,8 +91,7 @@ class DeletePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id):
-        user = info.context.user
-        post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=True)
+        post = require_content_authorization(info.context.user, post_id, Content.ContentType.POST, admin_override=True)
         post.content.delete()
         return DeletePost(success=True)
     

@@ -109,9 +109,8 @@ class AlterCommunityMembership(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, community_name, *args, **kwargs):
-        user = info.context.user
-        community = get_community(community_name)
-        final_user_role = join_or_leave_community(user, community)
+        assert_community_exists(community_name)
+        final_user_role = join_or_leave_community(info.context.user, community_name)
         return AlterCommunityMembership(final_user_role=final_user_role)
     
 class VoteContent(graphene.Mutation):
@@ -123,8 +122,7 @@ class VoteContent(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, content_id, vote, *args, **kwargs):
-        user = info.context.user
-        final_vote = vote_content(content_id, user, vote.value)
+        final_vote = vote_content(content_id, info.context.user, vote.value)
         return VoteContent(final_vote=final_vote)
         
 class UserMutation(graphene.ObjectType):

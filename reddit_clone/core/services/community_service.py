@@ -1,6 +1,7 @@
 from core.models import Community, User, Membership
 from core.custom_errors import community_not_found, bad_request
 from core.auth.roles import FOUNDER, MEMBER, MODERATOR, GUEST
+from core.utils.service_utils import add_to_query_dict
 
 def get_community(name: str) -> Community | None:
     try:
@@ -11,28 +12,39 @@ def get_community(name: str) -> Community | None:
 def assert_community_exists(name: str):
     assert Community.objects.filter(name=name).exists(), f'Community "{name}" does not exist'
 
-    
-def create_community(user: User, name: str, description: str):
+def create_community(user: (str | User), name: str, description: str):
     community = Community.objects.create(name=name, desc=description)
-    Membership.objects.create(role=FOUNDER, user=user, community=community)
+    
+    query_dict = { 'role': FOUNDER, }
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    
+    Membership.objects.create(**query_dict)
     return community
 
-def join_or_leave_community(user: User, community: Community) -> str:
-    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
+def join_or_leave_community(user: (str | User), community: (str | Community)) -> str:
+    query_dict = {}
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    membership = Membership.objects.filter(**query_dict).first()
     
     if not membership:
-        Membership.objects.create(role=MEMBER, user=user, community=community)
+        query_dict['role'] = MEMBER
+        Membership.objects.create(**query_dict)
         return MEMBER
     
     if membership.role == FOUNDER:
-        bad_request(f'Founder "{user.username}" of the community "{community.name}" cannot leave it')
+        bad_request(f'Founder of a community cannot leave it')
     
     membership.role = MEMBER if membership.role == GUEST else GUEST
     membership.save()
     return membership.role
 
-def promote_to_moderator(community: Community, user: User):
-    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
+def promote_to_moderator(community: (str | Community), user: (str | User)):
+    query_dict = {}
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    membership = Membership.objects.filter(**query_dict).first()
     
     if membership and membership.role == MEMBER:
         membership.role = MODERATOR
@@ -40,8 +52,11 @@ def promote_to_moderator(community: Community, user: User):
     else:
         bad_request('Only a member of a community can be promoted to moderator')
         
-def demote_to_member(community: Community, user: User):
-    membership = Membership.objects.filter(user_id=user.username, community_id=community.name).first()
+def demote_to_member(community: (str | Community), user: (str | User)):
+    query_dict = {}
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    membership = Membership.objects.filter(**query_dict).first()
     
     if membership and membership.role == MODERATOR:
         membership.role = MEMBER

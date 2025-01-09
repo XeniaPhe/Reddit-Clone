@@ -7,8 +7,14 @@ from core.auth.roles import FOUNDER
 from core.auth.auth import require_authentication, require_community_authorization
 
 from core.models import Community
-from core.services.user_service import assert_user_exists, get_user
-from core.services.community_service import get_community, create_community, promote_to_moderator, demote_to_member
+from core.services.user_service import assert_user_exists
+from core.services.community_service import (
+    get_community,
+    create_community,
+    promote_to_moderator,
+    demote_to_member,
+    assert_community_exists,
+)
 
 class CommunityType(DjangoObjectType):
     class Meta:
@@ -47,9 +53,8 @@ class CreateCommunity(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, name, description=None):
-        user = info.context.user
         description = description if description else f'Welcome to {name}!'
-        create_community(user, name, description)
+        create_community(info.context.user, name, description)
         return CreateCommunity(success=True)
     
 class UpdateCommunity(graphene.Mutation):
@@ -92,9 +97,9 @@ class PromoteToModerator(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
-        community = get_community(community_name)
-        user = get_user(username)
-        promote_to_moderator(community, user)
+        assert_community_exists(community_name)
+        assert_user_exists(username)
+        promote_to_moderator(community_name, username)
         return PromoteToModerator(success=True)
     
 class DemoteToMember(graphene.Mutation):
@@ -107,9 +112,9 @@ class DemoteToMember(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
-        community = get_community(community_name)
-        user = get_user(username)
-        demote_to_member(community, user)
+        assert_community_exists(community_name)
+        assert_user_exists(username)
+        demote_to_member(community_name, username)
         return DemoteToMember(success=True)
 
 class CommunityMutation(graphene.ObjectType):

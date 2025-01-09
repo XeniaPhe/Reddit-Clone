@@ -8,7 +8,6 @@ from core.auth.roles import MEMBER
 from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
 
 from core.models import Comment, Content
-from core.services.content_service import get_content
 from core.services.post_service import get_post
 from core.services.comment_service import get_comment, create_comment
 from core.schemas.common import ContentType
@@ -55,9 +54,8 @@ class CreateComment(graphene.Mutation):
         if post.community.name != community_name:
             bad_request('The post was shared in a different community than specified')
         
-        parent_id = post_id if not parent_id else parent_id        
-        parent = get_content(parent_id)
-        comment = create_comment(body, parent, user, post)
+        parent_id = post_id if not parent_id else parent_id
+        comment = create_comment(body, parent_id, user, post)
         return CreateComment(comment_id = comment.content.id)
                 
     

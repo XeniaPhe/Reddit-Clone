@@ -1,7 +1,7 @@
 from uuid import UUID
-from django.db.models import Sum
 from core.models import Comment, Content, User, Post
 from core.custom_errors import comment_not_found
+from core.utils.service_utils import add_to_query_dict
 
 def get_comment(id: UUID):
     try:
@@ -12,12 +12,13 @@ def get_comment(id: UUID):
 def assert_comment_exists(id: UUID):
     assert Comment.objects.filter(id=id).exists(), f'Comment with id "{id}" does not exist'
     
-def create_comment(body: str, parent: Content, user: User, post: Post):
+def create_comment(body: str, parent: (UUID | Content), user: (str | User), post: (UUID | Post)):
     content = Content.objects.create(body=body, content_type=Content.ContentType.COMMENT)
-    return Comment.objects.create(parent=parent, user=user, post=post, content=content)
-
-def get_comments_with_total_votes(**filters):
-    return Comment.objects.filter(**filters).annotate(total_votes=Sum('content__votes__vote'))
-
-def get_comment_with_total_votes(id: UUID):
-    return get_comments_with_total_votes(id=id).first()
+    
+    query_dict = {}
+    add_to_query_dict(query_dict, 'parent', parent)
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'post', post)
+    add_to_query_dict(query_dict, 'content', content)
+    
+    return Comment.objects.create(**query_dict)

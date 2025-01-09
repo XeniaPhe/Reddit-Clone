@@ -30,7 +30,7 @@ class ContentType(DjangoObjectType):
     @optional_authentication
     def resolve_user_vote(root, info, *args, **kwargs):
         user = info.context.user
-        return None if not user.is_authenticated else get_user_vote(root.id, user.username)
+        return None if not user.is_authenticated else get_user_vote(root.id, user)
         
 class CommunityRoleEnum(graphene.Enum):
     GUEST = GUEST
