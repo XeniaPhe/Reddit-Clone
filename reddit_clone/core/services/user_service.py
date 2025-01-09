@@ -24,7 +24,7 @@ def get_user_with_email(email: str) -> User | None:
         user_not_found(email)
 
 def assert_user_exists(username: str):
-    get_user(username)
+    assert User.objects.filter(username=username).exists(), f'User with username "{username}" does not exist'
     
 def asser_user_exists_with_email(email: str):
-    get_user_with_email(email)
+    assert User.objects.filter(email=email).exists(), f'User with email "{email}" does not exist'

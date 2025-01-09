@@ -10,7 +10,7 @@ def get_comment(id: UUID):
         comment_not_found(id)
         
 def assert_comment_exists(id: UUID):
-    get_comment(id)
+    assert Comment.objects.filter(id=id).exists(), f'Comment with id "{id}" does not exist'
     
 def create_comment(body: str, parent: Content, user: User, post: Post):
     content = Content.objects.create(body=body, content_type=Content.ContentType.COMMENT)

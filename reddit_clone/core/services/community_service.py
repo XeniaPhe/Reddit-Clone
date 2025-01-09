@@ -9,7 +9,8 @@ def get_community(name: str) -> Community | None:
         community_not_found(name)
         
 def assert_community_exists(name: str):
-    get_community(name)
+    assert Community.objects.filter(name=name).exists(), f'Community "{name}" does not exist'
+
     
 def create_community(user: User, name: str, description: str):
     community = Community.objects.create(name=name, desc=description)

@@ -62,6 +62,7 @@ class Content(models.Model):
     body = models.TextField(blank=True, default='')
     publish_date = models.DateTimeField(default=timezone.now)
     content_type = models.IntegerField(choices=ContentType.choices)
+    total_votes = models.IntegerField(default=0)
     
     def is_comment(self):
         return self.content_type == Content.ContentType.COMMENT
@@ -96,11 +97,10 @@ class Comment(models.Model):
 class Vote(models.Model):
     class VoteType(models.IntegerChoices):
         DOWNVOTE = -1, 'Downvote'
-        NONVOTE = 0, 'None'
         UPVOTE = 1, 'Upvote'
         
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    vote = models.IntegerField(choices=VoteType.choices, default=VoteType.NONVOTE)
+    vote = models.IntegerField(choices=VoteType.choices, default=VoteType.UPVOTE)
     user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='votes')
     content = models.ForeignKey(to=Content, on_delete=models.CASCADE, related_name='votes')
 

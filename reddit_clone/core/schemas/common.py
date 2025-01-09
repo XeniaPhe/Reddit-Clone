@@ -15,13 +15,14 @@ class VoteEnum(graphene.Enum):
 class ContentType(DjangoObjectType):
     class Meta:
         model = Content
-        fields = ('id', 'body', 'publish_date',)
+        fields = ('id', 'body', 'publish_date', 'total_votes')
     
     class FilterMeta:
         filter_fields = {
             'id': ops.ID_OPERATORS,
             'body': ops.STRING_OPERATORS,
             'publish_date': ops.DATE_OPERATORS,
+            'total_votes': ops.NUMERIC_OPERATORS,
         }
         
     user_vote = graphene.Field(VoteEnum)

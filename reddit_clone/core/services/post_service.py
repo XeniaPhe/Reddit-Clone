@@ -10,7 +10,7 @@ def get_post(id: UUID):
         post_not_found(id)
         
 def assert_post_exists(id: UUID):
-    get_post(id)
+    assert Post.objects.filter(content_id=id).exists(), f'Post with ID "{id}" does not exist'
     
 def create_post(title: str, body: str, user: User, community: Community):
     content = Content.objects.create(body=body, content_type=Content.ContentType.POST)
