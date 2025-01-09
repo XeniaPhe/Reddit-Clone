@@ -19,19 +19,38 @@ from core.schemas.common import ContentType
 class PostType(DjangoObjectType):
     class Meta:
         model = Post
-        fields = ('content', 'title', 'user', 'community',)
+        fields = ('content', 'title', 'community',)
 
     class FilterMeta:
         filter_fields = {
             'content': ops.ID_OPERATORS,
             'title': ops.STRING_OPERATORS,
-            'user': ops.ID_OPERATORS,
             'community': ops.ID_OPERATORS,
         }
-        
+
+class TimeRangeEnum(graphene.Enum):
+    PAST_HOUR = 0
+    PAST_24_HOURS = 1
+    PAST_WEEK = 2
+    PAST_MONTH = 3
+    PAST_QUARTER = 4
+    PAST_YEAR = 5
+    ALL_TIME = 6
+    
 class PostQuery(graphene.ObjectType):
     post_by_id = graphene.Field(PostType, id=graphene.Argument(graphene.UUID, required=True))
     posts = get_list(PostType, filter=True, paginate=True)
+    
+    new_posts = get_list(PostType, filter=False, paginate=True,
+                         community_name=graphene.Argument(graphene.String, required=True))
+    
+    top_posts = get_list(PostType, filter=False, paginate=True,
+                         community_name=graphene.Argument(graphene.String, required=True),
+                         time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
+    
+    hot_posts = get_list(PostType, filter=False, paginate=True,
+                         community_name=graphene.Argument(graphene.String, required=True),
+                         time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
     
     def resolve_post_by_id(root, info, id):
         return get_post(id)
@@ -66,8 +85,7 @@ class UpdatePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id, updated_title=None, updated_body=None):
-        user = info.context.user
-        post = require_content_authorization(user, post_id, Content.ContentType.POST, admin_override=False)
+        post = require_content_authorization(info.context.user, post_id, admin_override=False)
         update = False
         
         if updated_title:
@@ -91,7 +109,7 @@ class DeletePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id):
-        post = require_content_authorization(info.context.user, post_id, Content.ContentType.POST, admin_override=True)
+        post = require_content_authorization(info.context.user, post_id, admin_override=True)
         post.content.delete()
         return DeletePost(success=True)
     

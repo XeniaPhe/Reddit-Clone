@@ -39,7 +39,7 @@ def vote_content(content: (UUID | Content), user: (str | User), vote: int) -> in
         user_vote.save()
         add, ret = vote * 2, vote
         
-    Content.objects.filter(id=id).update(total_votes=F('total_votes') + add)
+    Content.objects.filter(id=content).update(total_votes=F('total_votes') + add)
     return ret
         
 def get_user_vote(content: (UUID | Content), user: (str | User)):

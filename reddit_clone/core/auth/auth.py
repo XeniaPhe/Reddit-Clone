@@ -6,8 +6,7 @@ from functools import wraps
 from core.models import User, Membership, Content
 from core.services.user_service import get_user
 from core.services.community_service import assert_community_exists
-from core.services.post_service import get_post
-from core.services.comment_service import get_comment
+from core.services.content_service import get_content, get_related_object
 from core.custom_errors import internal_server_error, authentication_error, authorization_error
 from core.auth.roles import GUEST, MEMBER, ADMIN, ALL_ROLES, permission_granted
 
@@ -100,18 +99,18 @@ def require_community_authorization(community_param, required_role=MEMBER, admin
         return wrapper
     return decorator
 
-def require_content_authorization(user: User, content_id, content_type: Content.ContentType, admin_override=False):
+def require_content_authorization(user: User, content_id, admin_override=False):
     if not user:
         internal_server_error('The request does not contain a valid user, '
                             + 'authentication may have failed or user information is missing')
 
-    post_or_comment = get_post(content_id) if content_type == Content.ContentType.POST else get_comment(content_id)
+    content = get_content(content_id)
     
-    if (post_or_comment.user.username != user.username) and (not admin_override or not user.is_superuser):
+    if (content.user.username != user.username) and (not admin_override or not user.is_superuser):
         error_msg = f'User {user.username} is not authorized to perform this action. They must be the content owner'
         if admin_override:
             error_msg += f' or have admin priviliges'
         
         authorization_error(error_msg)
         
-    return post_or_comment
+    return get_related_object(content)

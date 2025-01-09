@@ -13,10 +13,16 @@ def assert_post_exists(id: UUID):
     assert Post.objects.filter(content_id=id).exists(), f'Post with ID "{id}" does not exist'
     
 def create_post(title: str, body: str, user: (str | User), community: (str | Community)):
-    content = Content.objects.create(body=body, content_type=Content.ContentType.POST)
+    query_dict = {
+        'body': body,
+        'content_type': Content.ContentType.POST,
+    }
+    
+    add_to_query_dict(query_dict, 'user', user)
+    
+    content = Content.objects.create(**query_dict)
     
     query_dict = { 'title': title, }
-    add_to_query_dict(query_dict, 'user', user)
     add_to_query_dict(query_dict, 'community', community)
     add_to_query_dict(query_dict, 'content', content)
     

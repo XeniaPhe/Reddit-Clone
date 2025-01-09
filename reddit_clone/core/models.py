@@ -59,9 +59,10 @@ class Content(models.Model):
         COMMENT = 1, 'Comment'
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    body = models.TextField(blank=True, default='')
-    publish_date = models.DateTimeField(default=timezone.now)
+    user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='contents', null=True, default=None)
     content_type = models.IntegerField(choices=ContentType.choices)
+    publish_date = models.DateTimeField(default=timezone.now)
+    body = models.TextField(blank=True, default='')
     total_votes = models.IntegerField(default=0)
     
     def is_comment(self):
@@ -82,7 +83,6 @@ def get_comment_content():
 class Post(models.Model):
     content = models.OneToOneField(to=Content, on_delete=models.CASCADE, primary_key=True, default=get_post_content)
     title = models.CharField(max_length=96)
-    user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='posts')
     community = models.ForeignKey(to=Community, on_delete=models.CASCADE, related_name='posts')
     
     def __str__(self):
@@ -91,7 +91,6 @@ class Post(models.Model):
 class Comment(models.Model):
     content = models.OneToOneField(to=Content, on_delete=models.CASCADE, primary_key=True, default=get_comment_content)
     parent = models.ForeignKey(to=Content, on_delete=models.DO_NOTHING, related_name='children')
-    user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING, related_name='comments')
     post = models.ForeignKey(to=Post, on_delete=models.CASCADE, related_name='comments')
 
 class Vote(models.Model):

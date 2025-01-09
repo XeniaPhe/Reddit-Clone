@@ -1,7 +1,6 @@
 from django.db.models import Q
 from core.models import User
 from core.custom_errors import user_not_found, not_found
-from core.utils.service_utils import add_to_query_dict
 
 def fetch_user(username_or_email: str, error_msg=None):
     try:

@@ -15,13 +15,12 @@ from core.schemas.common import ContentType
 class CommentType(DjangoObjectType):
     class Meta:
         model = Comment
-        fields = ('content', 'parent', 'user', 'post',)
+        fields = ('content', 'parent', 'post',)
         
     class FilterMeta:
         filter_fields = {
             'content': ops.ID_OPERATORS,
             'parent': ops.ID_OPERATORS,
-            'user': ops.ID_OPERATORS,
             'post': ops.ID_OPERATORS,
         }
         
@@ -48,17 +47,15 @@ class CreateComment(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, post_id, body, parent_id=None):
-        user = info.context.user
         post = get_post(post_id)
         
         if post.community.name != community_name:
             bad_request('The post was shared in a different community than specified')
         
         parent_id = post_id if not parent_id else parent_id
-        comment = create_comment(body, parent_id, user, post)
+        comment = create_comment(body, parent_id, info.context.user, post)
         return CreateComment(comment_id = comment.content.id)
                 
-    
 class UpdateComment(graphene.Mutation):
     class Arguments:
         comment_id = graphene.UUID(required=True)
@@ -68,8 +65,7 @@ class UpdateComment(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, comment_id, updated_body=None):
-        user = info.context.user
-        comment = require_content_authorization(user, comment_id, Content.ContentType.COMMENT, admin_override=False)
+        comment = require_content_authorization(info.context.user, comment_id, admin_override=False)
         
         if updated_body:
             comment.content.body = updated_body
@@ -85,8 +81,7 @@ class DeleteComment(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, comment_id):
-        user = info.context.user
-        comment = require_content_authorization(user, comment_id, Content.ContentType.COMMENT, admin_override=True)
+        comment = require_content_authorization(info.context.user, comment_id, admin_override=True)
         comment.content.delete()
         return DeleteComment(success=True)
     
