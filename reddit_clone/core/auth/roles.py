@@ -1,9 +1,9 @@
-import graphene
 from core.custom_errors import internal_server_error
 
-GUEST, MEMBER, MODERATOR, FOUNDER, ADMIN = 'Gst', 'Mem', 'Mod', 'Fdr', 'Adm'
+BANNED, GUEST, MEMBER, MODERATOR, FOUNDER, ADMIN = 'Bnd', 'Gst', 'Mem', 'Mod', 'Fdr', 'Adm'
 
 DB_ROLE_CHOICES = {
+    BANNED: 'Banned',
     GUEST: 'Guest',
     MEMBER: 'Member',
     MODERATOR: 'Moderator',
@@ -12,7 +12,7 @@ DB_ROLE_CHOICES = {
 
 ALL_ROLES = DB_ROLE_CHOICES | { ADMIN: 'Admin', }
     
-_ROLE_HIERARCHY = [ADMIN, FOUNDER, MODERATOR, MEMBER, GUEST]
+_ROLE_HIERARCHY = [ADMIN, FOUNDER, MODERATOR, MEMBER, GUEST, BANNED]
 
 #Is permission granted given owned and required roles of the community and the admin status (is_admin field in the User)
 def permission_granted(required_role, user_role):

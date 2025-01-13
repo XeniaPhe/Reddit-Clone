@@ -11,15 +11,15 @@ from core.auth.auth import (
     optional_authentication,
     )
 
-from core.models import Post, Content
-from core.services.community_service import assert_community_exists
-from core.services.post_service import get_post, create_post
+from core.models import Post
+from core.services.content_service import get_related_object
+from core.services.post_service import get_unremoved_post, create_post
 from core.schemas.common import ContentType
 
 class PostType(DjangoObjectType):
     class Meta:
         model = Post
-        fields = ('content', 'title', 'community',)
+        fields = ('title', 'content', 'community',)
 
     class FilterMeta:
         filter_fields = {
@@ -53,12 +53,12 @@ class PostQuery(graphene.ObjectType):
                          time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
     
     def resolve_post_by_id(root, info, id):
-        return get_post(id)
+        return get_unremoved_post(id)
     
     @optional_authentication
     @filter_and_paginate(PostType)
     def resolve_posts(root, info, *args, **kwargs):
-        return Post.objects.all()
+        return Post.objects.filter(content__deleted=False)
         
 class CreatePost(graphene.Mutation):
     class Arguments:
@@ -71,7 +71,6 @@ class CreatePost(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, title, body=''):
-        assert_community_exists(community_name)
         post = create_post(title, body, info.context.user, community_name)
         return CreatePost(post_id=post.content.id)
     
@@ -85,20 +84,17 @@ class UpdatePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id, updated_title=None, updated_body=None):
-        post = require_content_authorization(info.context.user, post_id, admin_override=False)
-        update = False
-        
-        if updated_title:
-            post.title = updated_title
-            update = True
+        content = require_content_authorization(info.context.user, post_id, check_deleted=True, admin_override=False)
+        post = get_related_object(content)
         
         if updated_body:
             post.content.body = updated_body
-            update = True
-            
-        if update:
-            post.save()
+            post.content.save()
         
+        if updated_title:
+            post.title = updated_title
+            post.save()
+            
         return UpdatePost(success=True)
         
 class DeletePost(graphene.Mutation):
@@ -109,8 +105,9 @@ class DeletePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id):
-        post = require_content_authorization(info.context.user, post_id, admin_override=True)
-        post.content.delete()
+        content = require_content_authorization(info.context.user, post_id, check_deleted=False, admin_override=True)
+        content.deleted = not content.deleted
+        content.save()
         return DeletePost(success=True)
     
 class PostMutation(graphene.ObjectType):

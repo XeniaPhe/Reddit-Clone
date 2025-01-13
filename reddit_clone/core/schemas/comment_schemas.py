@@ -8,8 +8,9 @@ from core.auth.roles import MEMBER
 from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
 
 from core.models import Comment, Content
-from core.services.post_service import get_post
-from core.services.comment_service import get_comment, create_comment
+from core.services.content_service import get_related_object
+from core.services.post_service import get_unremoved_post
+from core.services.comment_service import get_comment, get_unremoved_comment, create_comment
 from core.schemas.common import ContentType
 
 class CommentType(DjangoObjectType):
@@ -47,7 +48,7 @@ class CreateComment(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, post_id, body, parent_id=None):
-        post = get_post(post_id)
+        post = get_unremoved_post(post_id)
         
         if post.community.name != community_name:
             bad_request('The post was shared in a different community than specified')
@@ -65,11 +66,11 @@ class UpdateComment(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, comment_id, updated_body=None):
-        comment = require_content_authorization(info.context.user, comment_id, admin_override=False)
+        content = require_content_authorization(info.context.user, comment_id, Content.ContentType.COMMENT, check_deleted=True, admin_override=False)
         
         if updated_body:
-            comment.content.body = updated_body
-            comment.save()
+            content.body = updated_body
+            content.save()
             
         return UpdateComment(success=True)
         
@@ -81,8 +82,8 @@ class DeleteComment(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, comment_id):
-        comment = require_content_authorization(info.context.user, comment_id, admin_override=True)
-        comment.content.delete()
+        content = require_content_authorization(info.context.user, comment_id, Content.ContentType.COMMENT, check_deleted=False, admin_override=True)
+        content.deleted = not content.deleted
         return DeleteComment(success=True)
     
 class CommentMutation(graphene.ObjectType):

@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from core.models import User, Membership, Content
-from core.services.user_service import get_user
+from core.services.user_service import get_unremoved_user
 from core.services.community_service import assert_community_exists
-from core.services.content_service import get_content, get_related_object
-from core.custom_errors import internal_server_error, authentication_error, authorization_error
+from core.services.content_service import get_content, get_unremoved_content
+from core.custom_errors import internal_server_error, authentication_error, authorization_error, bad_request
 from core.auth.roles import GUEST, MEMBER, ADMIN, ALL_ROLES, permission_granted
 
 def create_jwt_token(user: User):
@@ -33,9 +33,10 @@ def optional_authentication(func):
             try:
                 payload = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
                 username = payload['username']
-                info.context.user = get_user(username)
-            except:
-                pass
+                user = get_unremoved_user(username)
+                info.context.user = user
+            except jwt.exceptions.InvalidTokenError:
+                authentication_error('Invalid JWT token')
             
         return func(root, info, *args, **kwargs)
     return wrapper
@@ -63,8 +64,12 @@ def require_authentication(require_admin=False):
                 if require_admin and not is_admin:
                     authorization_error(f'The user "{username}" does not have admin priviliges')
                 
-                info.context.user = get_user(username)
+                user = get_unremoved_user(username)
                 
+                if not user.is_active:
+                    authentication_error(f'Account of user "{user.username}" has been deleted or banned')
+                
+                info.context.user = user
             except jwt.ExpiredSignatureError:
                 authentication_error('The JWT token has expired')
             except jwt.exceptions.InvalidTokenError:
@@ -99,12 +104,15 @@ def require_community_authorization(community_param, required_role=MEMBER, admin
         return wrapper
     return decorator
 
-def require_content_authorization(user: User, content_id, admin_override=False):
+def require_content_authorization(user: User, content_id, content_type: Content.ContentType, check_deleted=True, admin_override=False) -> Content:
     if not user:
         internal_server_error('The request does not contain a valid user, '
                             + 'authentication may have failed or user information is missing')
 
-    content = get_content(content_id)
+    if check_deleted:
+        content = get_unremoved_content(content_id)
+    else:
+        content = get_content(content_id)
     
     if (content.user.username != user.username) and (not admin_override or not user.is_superuser):
         error_msg = f'User {user.username} is not authorized to perform this action. They must be the content owner'
@@ -112,5 +120,8 @@ def require_content_authorization(user: User, content_id, admin_override=False):
             error_msg += f' or have admin priviliges'
         
         authorization_error(error_msg)
-        
-    return get_related_object(content)
+    
+    if content_type != content.content_type:
+        bad_request(f'The requested content has a different type than expected.\nExpected type: {content_type}, Content type: {content.content_type}')
+    
+    return content

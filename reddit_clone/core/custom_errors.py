@@ -39,3 +39,15 @@ def post_not_found(id: UUID):
     
 def comment_not_found(id: UUID):
     not_found(f'Comment "{id}" does not exist')
+    
+def user_deleted(username: str):
+    bad_request(f'User "{username}" has been deleted')
+    
+def content_deleted(id: UUID):
+    bad_request(f'Content "{id}" has been deleted')
+    
+def post_deleted(id: UUID):
+    bad_request(f'Post "{id}" has been deleted')
+    
+def comment_deleted(id: UUID):
+    bad_request(f'Comment "{id}" has been deleted')

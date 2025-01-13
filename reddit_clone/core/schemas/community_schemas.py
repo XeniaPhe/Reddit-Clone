@@ -7,13 +7,12 @@ from core.auth.roles import FOUNDER
 from core.auth.auth import require_authentication, require_community_authorization
 
 from core.models import Community
-from core.services.user_service import assert_user_exists
+from core.services.user_service import assert_user
 from core.services.community_service import (
     get_community,
     create_community,
     promote_to_moderator,
     demote_to_member,
-    assert_community_exists,
 )
 
 class CommunityType(DjangoObjectType):
@@ -39,9 +38,9 @@ class CommunityQuery(graphene.ObjectType):
     @filter_and_paginate(CommunityType)
     def resolve_communities(root, info, of_user=None, *args, **kwargs):
         if not of_user:
-            return Community.objects.all()
+            return Community.objects.filter()
         
-        assert_user_exists(of_user)
+        assert_user(of_user)
         return Community.objects.filter(users_id=of_user)
     
 class CreateCommunity(graphene.Mutation):
@@ -97,8 +96,6 @@ class PromoteToModerator(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
-        assert_community_exists(community_name)
-        assert_user_exists(username)
         promote_to_moderator(community_name, username)
         return PromoteToModerator(success=True)
     
@@ -112,8 +109,6 @@ class DemoteToMember(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=FOUNDER, admin_override=False)
     def mutate(root, info, username, community_name, *args, **kwargs):
-        assert_community_exists(community_name)
-        assert_user_exists(username)
         demote_to_member(community_name, username)
         return DemoteToMember(success=True)
 

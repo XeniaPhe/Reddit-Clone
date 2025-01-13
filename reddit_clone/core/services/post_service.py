@@ -1,6 +1,6 @@
 from uuid import UUID
 from core.models import Post, Content, User, Community
-from core.custom_errors import post_not_found
+from core.custom_errors import post_not_found, post_deleted
 from core.utils.service_utils import add_to_query_dict
 
 def get_post(id: UUID):
@@ -8,9 +8,19 @@ def get_post(id: UUID):
         return Post.objects.get(pk=id)
     except Post.DoesNotExist:
         post_not_found(id)
+
+def get_unremoved_post(id: UUID):
+    post = get_post(id)
+    if post.content.deleted:
+        post_deleted(id)
+        
+    return post
         
 def assert_post_exists(id: UUID):
-    assert Post.objects.filter(content_id=id).exists(), f'Post with ID "{id}" does not exist'
+    get_post(id)
+
+def assert_post(id: UUID):
+    get_unremoved_post(id)
     
 def create_post(title: str, body: str, user: (str | User), community: (str | Community)):
     query_dict = {
