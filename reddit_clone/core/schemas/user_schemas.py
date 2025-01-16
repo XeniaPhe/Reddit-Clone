@@ -45,15 +45,15 @@ class UserQuery(graphene.ObjectType):
                                in_community=graphene.Argument(graphene.String, required=True))
     
     def resolve_user_by_username(root, info, username):
-        return get_unremoved_user(username)
+        return get_user(username)
     
     @filter_and_paginate(UserType)
     def resolve_users(root, info, of_community=None, *args, **kwargs):
         if not of_community:
-            return User.objects.filter(is_active=True)
+            return User.objects.all()
         
         assert_community_exists(of_community)
-        return User.objects.filter(is_active=True, communities_id=of_community)
+        return User.objects.filter(communities_id=of_community)
     
     def resolve_user_role(root, info, of_user, in_community):
         assert_user(of_user)

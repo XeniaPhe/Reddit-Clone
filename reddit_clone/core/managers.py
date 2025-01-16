@@ -1,3 +1,4 @@
+from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
 
 class UserManager(BaseUserManager):
@@ -28,3 +29,11 @@ class UserManager(BaseUserManager):
     
     def get_by_natural_key(self, username):
         return self.get(username=username)
+    
+class ContentManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().order_by('-engagement_score')
+    
+class ConcreteContentManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().order_by('-content__engagement_score')

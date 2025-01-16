@@ -12,8 +12,9 @@ from core.auth.auth import (
     )
 
 from core.models import Post
+from core.services.community_service import assert_community_exists
 from core.services.content_service import get_related_object
-from core.services.post_service import get_unremoved_post, create_post
+from core.services.post_service import get_post, create_post
 from core.schemas.common import ContentType
 
 class PostType(DjangoObjectType):
@@ -27,7 +28,7 @@ class PostType(DjangoObjectType):
             'title': ops.STRING_OPERATORS,
             'community': ops.ID_OPERATORS,
         }
-
+        
 class TimeRangeEnum(graphene.Enum):
     PAST_HOUR = 0
     PAST_24_HOURS = 1
@@ -41,24 +42,35 @@ class PostQuery(graphene.ObjectType):
     post_by_id = graphene.Field(PostType, id=graphene.Argument(graphene.UUID, required=True))
     posts = get_list(PostType, filter=True, paginate=True)
     
+    home_feed = get_list(PostType, filter=False, paginate=True)
     new_posts = get_list(PostType, filter=False, paginate=True,
+                         community_name=graphene.Argument(graphene.String, required=True))
+    
+    hot_posts = get_list(PostType, filter=False, paginate=True,
                          community_name=graphene.Argument(graphene.String, required=True))
     
     top_posts = get_list(PostType, filter=False, paginate=True,
                          community_name=graphene.Argument(graphene.String, required=True),
                          time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
     
-    hot_posts = get_list(PostType, filter=False, paginate=True,
-                         community_name=graphene.Argument(graphene.String, required=True),
-                         time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
-    
     def resolve_post_by_id(root, info, id):
-        return get_unremoved_post(id)
+        return get_post(id)
     
     @optional_authentication
     @filter_and_paginate(PostType)
     def resolve_posts(root, info, *args, **kwargs):
-        return Post.objects.filter(content__deleted=False)
+        return Post.objects.all()
+    
+    @optional_authentication
+    @filter_and_paginate(PostType)
+    def resolve_new_posts(root, info, community_name, *args, **kwargs):
+        assert_community_exists(community_name)
+        return Post.objects.filter(community_id=community_name).order_by('-content__publish_date')
+        
+    @optional_authentication
+    @filter_and_paginate(PostType)
+    def resolve_hot_posts(root, info, community_name, *args, **kwargs):
+        assert_community_exists(community_name)
         
 class CreatePost(graphene.Mutation):
     class Arguments:
@@ -105,8 +117,8 @@ class DeletePost(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, post_id):
-        content = require_content_authorization(info.context.user, post_id, check_deleted=False, admin_override=True)
-        content.deleted = not content.deleted
+        content = require_content_authorization(info.context.user, post_id, check_deleted=True, admin_override=True)
+        content.deleted = True
         content.save()
         return DeletePost(success=True)
     

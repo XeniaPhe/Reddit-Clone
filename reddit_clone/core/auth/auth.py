@@ -40,7 +40,7 @@ def optional_authentication(func):
             
         return func(root, info, *args, **kwargs)
     return wrapper
-    
+
 def require_authentication(require_admin=False):
     def decorator(func):
         @wraps(func)

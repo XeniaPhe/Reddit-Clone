@@ -82,8 +82,8 @@ class DeleteComment(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, comment_id):
-        content = require_content_authorization(info.context.user, comment_id, Content.ContentType.COMMENT, check_deleted=False, admin_override=True)
-        content.deleted = not content.deleted
+        content = require_content_authorization(info.context.user, comment_id, Content.ContentType.COMMENT, check_deleted=True, admin_override=True)
+        content.deleted = True
         return DeleteComment(success=True)
     
 class CommentMutation(graphene.ObjectType):

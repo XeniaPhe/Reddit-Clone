@@ -65,6 +65,7 @@ class Content(models.Model):
     body = models.TextField(blank=True, default='')
     deleted = models.BooleanField(default=False)
     total_votes = models.IntegerField(default=0)
+    engagement_score = models.IntegerField(default=0)
     
     def is_comment(self):
         return self.content_type == Content.ContentType.COMMENT
@@ -97,6 +98,7 @@ class Comment(models.Model):
 class Vote(models.Model):
     class VoteType(models.IntegerChoices):
         DOWNVOTE = -1, 'Downvote'
+        NONVOTE = 0, 'Nonvote'
         UPVOTE = 1, 'Upvote'
         
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
