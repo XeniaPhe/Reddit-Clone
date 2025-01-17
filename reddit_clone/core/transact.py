@@ -1,5 +1,5 @@
 from django.db import transaction
-from custom_errors import graphql_error
+from core.custom_errors import graphql_error
 
 def transact(transaction_callback, error_msg=None, *args, **kwargs):
     try:
