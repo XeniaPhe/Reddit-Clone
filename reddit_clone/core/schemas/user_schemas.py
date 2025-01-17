@@ -8,7 +8,7 @@ from core.auth.roles import GUEST
 from core.auth.auth import require_authentication, create_jwt_token
 
 from core.models import User, Membership
-from core.services.user_service import fetch_unremoved_user, get_user, get_unremoved_user, assert_user
+from core.services.user_service import fetch_unremoved_user, get_user, assert_user, delete_user
 from core.services.community_service import assert_community_exists, join_or_leave_community
 from core.services.content_service import vote_content
 from core.schemas.common import VoteEnum, CommunityRoleEnum
@@ -97,12 +97,7 @@ class DeleteSelfUser(graphene.Mutation):
     
     @require_authentication()
     def mutate(root, info, *args, **kwargs):
-        user = info.context.user
-        user.is_active = False
-        user.is_staff = False
-        user.is_superuser = False
-        user.save()
-        #TODO: remove memberships of the user here, keep the posts and comments though
+        delete_user(info.context.user)
         return DeleteSelfUser(success=True)
     
 class BanUser(graphene.Mutation):
@@ -113,9 +108,7 @@ class BanUser(graphene.Mutation):
     
     @require_authentication(require_admin=True)
     def mutate(root, info, username):
-        user = get_user(username)
-        user.is_active = not user.is_active
-        user.save()
+        delete_user(username)
         return BanUser(success=True)
 
 class JoinOrLeaveCommunity(graphene.Mutation):

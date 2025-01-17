@@ -100,8 +100,8 @@ class UpdatePost(graphene.Mutation):
         post = get_related_object(content)
         
         if updated_body:
-            post.content.body = updated_body
-            post.content.save()
+            content.body = updated_body
+            content.save()
         
         if updated_title:
             post.title = updated_title

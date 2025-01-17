@@ -36,6 +36,7 @@ class Community(models.Model):
     name = models.CharField(max_length=48, primary_key=True)
     desc = models.TextField(blank=True)
     created_at = models.DateField(default=timezone.now)
+    number_of_members = models.IntegerField(default=1)
     users = models.ManyToManyField(to=User, through='Membership', related_name='communities')
     
     def __str__(self):

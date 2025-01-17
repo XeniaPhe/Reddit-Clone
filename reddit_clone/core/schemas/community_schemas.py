@@ -38,7 +38,7 @@ class CommunityQuery(graphene.ObjectType):
     @filter_and_paginate(CommunityType)
     def resolve_communities(root, info, of_user=None, *args, **kwargs):
         if not of_user:
-            return Community.objects.filter()
+            return Community.objects.all()
         
         assert_user(of_user)
         return Community.objects.filter(users_id=of_user)
@@ -82,8 +82,7 @@ class DeleteCommunity(graphene.Mutation):
     @require_authentication()
     @require_community_authorization('name', required_role=FOUNDER, admin_override=True)
     def mutate(root, info, name):
-        community = get_community(name)
-        community.delete()
+        get_community(name).delete()
         return DeleteCommunity(success=True)
 
 class PromoteToModerator(graphene.Mutation):

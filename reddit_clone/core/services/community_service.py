@@ -1,12 +1,15 @@
+from django.db.models import F
 from core.models import Community, User, Membership
 from core.services.user_service import assert_user
 from core.custom_errors import community_not_found, bad_request
 from core.auth.roles import FOUNDER, MEMBER, MODERATOR, GUEST
 from core.utils.service_utils import add_to_query_dict
+from core.transact import transact
+from core.utils.manager_utils import preselect
 
-def get_community(name: str):
+def get_community(name: str, select_related: list[str]=None, prefetch_related: list[str]=None):
     try:
-        return Community.objects.get(name=name)
+        return preselect(Community, select_related, prefetch_related).get(name=name)
     except Community.DoesNotExist:
         community_not_found(name)
 
@@ -14,14 +17,17 @@ def assert_community_exists(name: str):
     get_community(name)
 
 def create_community(user: (str | User), name: str, description: str):
-    community = Community.objects.create(name=name, desc=description)
+    def transaction():
+        community = Community.objects.create(name=name, desc=description)
+
+        query_dict = { 'role': FOUNDER, }
+        add_to_query_dict(query_dict, 'user', user)
+        add_to_query_dict(query_dict, 'community', community)
+
+        Membership.objects.create(**query_dict)
+        return community
     
-    query_dict = { 'role': FOUNDER, }
-    add_to_query_dict(query_dict, 'user', user)
-    add_to_query_dict(query_dict, 'community', community)
-    
-    Membership.objects.create(**query_dict)
-    return community
+    return transact(transaction, 'An error occured while creating the community')
 
 def join_or_leave_community(user: (str | User), community: (str | Community)) -> str:
     if not isinstance(community, Community):
@@ -32,17 +38,22 @@ def join_or_leave_community(user: (str | User), community: (str | Community)) ->
     add_to_query_dict(query_dict, 'community', community)
     membership = Membership.objects.filter(**query_dict).first()
     
-    if not membership:
-        query_dict['role'] = MEMBER
-        Membership.objects.create(**query_dict)
-        return MEMBER
+    def transaction():
+        if not membership:
+            query_dict['role'] = MEMBER
+            membership = Membership.objects.create(**query_dict)
+        elif membership.role == FOUNDER:
+            bad_request(f'Founder of a community cannot leave it')
+        else:
+            membership.role = MEMBER if membership.role == GUEST else GUEST
+            membership.save()
+
+        add = 1 if membership.role == MEMBER else -1
+        community_name = community if isinstance(community, str) else community.name
+        Community.objects.filter(name=community_name).update(number_of_members = F('number_of_members') + add)
+        return membership.role
     
-    if membership.role == FOUNDER:
-        bad_request(f'Founder of a community cannot leave it')
-    
-    membership.role = MEMBER if membership.role == GUEST else GUEST
-    membership.save()
-    return membership.role
+    return transact(transaction, 'An error occured while joining the community')
 
 def promote_to_moderator(community: (str | Community), user: (str | User)):
     if not isinstance(user, User):
