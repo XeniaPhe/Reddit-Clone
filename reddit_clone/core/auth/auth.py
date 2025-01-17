@@ -110,9 +110,9 @@ def require_content_authorization(user: User, content_id, content_type: Content.
                             + 'authentication may have failed or user information is missing')
 
     if check_deleted:
-        content = get_unremoved_content(content_id)
+        content = get_unremoved_content(content_id, select_related=['user'])
     else:
-        content = get_content(content_id)
+        content = get_content(content_id, select_related=['user'])
     
     if (content.user.username != user.username) and (not admin_override or not user.is_superuser):
         error_msg = f'User {user.username} is not authorized to perform this action. They must be the content owner'

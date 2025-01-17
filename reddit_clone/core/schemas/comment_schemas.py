@@ -30,11 +30,11 @@ class CommentQuery(graphene.ObjectType):
     comments = get_list(CommentType, filter=True, paginate=True)
     
     def resolve_comment_by_id(root, info, id):
-        return get_comment(id)
+        return get_comment(id, select_related=['content'])
     
     @filter_and_paginate(CommentType)
     def resolve_comments(root, info, *args, **kwargs):
-        return Comment.objects.all()
+        return Comment.objects.select_related('content').all()
     
 class CreateComment(graphene.Mutation):
     class Arguments:
@@ -48,14 +48,14 @@ class CreateComment(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, post_id, body, parent_id=None):
-        post = get_unremoved_post(post_id)
+        post = get_unremoved_post(post_id, select_related=['community'])
         
         if post.community.name != community_name:
             bad_request('The post was shared in a different community than specified')
         
         parent_id = post_id if not parent_id else parent_id
-        comment = create_comment(body, parent_id, info.context.user, post)
-        return CreateComment(comment_id = comment.content.id)
+        _, content = create_comment(body, parent_id, info.context.user, post)
+        return CreateComment(comment_id = content.id)
                 
 class UpdateComment(graphene.Mutation):
     class Arguments:

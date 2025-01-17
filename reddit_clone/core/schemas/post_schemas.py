@@ -54,18 +54,20 @@ class PostQuery(graphene.ObjectType):
                          time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
     
     def resolve_post_by_id(root, info, id):
-        return get_post(id)
+        return get_post(id, select_related=['content'])
     
     @optional_authentication
     @filter_and_paginate(PostType)
     def resolve_posts(root, info, *args, **kwargs):
-        return Post.objects.all()
+        return Post.objects.select_related('content').all()
     
     @optional_authentication
     @filter_and_paginate(PostType)
     def resolve_new_posts(root, info, community_name, *args, **kwargs):
         assert_community_exists(community_name)
-        return Post.objects.filter(community_id=community_name).order_by('-content__publish_date')
+        return (Post.objects.filter(community_id=community_name)
+                .select_related('content')
+                .order_by('-content__publish_date'))
         
     @optional_authentication
     @filter_and_paginate(PostType)
@@ -83,8 +85,8 @@ class CreatePost(graphene.Mutation):
     @require_authentication()
     @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
     def mutate(root, info, community_name, title, body=''):
-        post = create_post(title, body, info.context.user, community_name)
-        return CreatePost(post_id=post.content.id)
+        _, content = create_post(title, body, info.context.user, community_name)
+        return CreatePost(post_id=content.id)
     
 class UpdatePost(graphene.Mutation):
     class Arguments:

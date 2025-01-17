@@ -55,7 +55,7 @@ def create_comment(body: str, parent: (UUID | Content), user: (str | User), post
         comment = get_comment(comment.id, select_related=['parent', 'parent__user', 'post', 'post__content', 'post__content__user'])
         username = user if isinstance(user, str) else user.username
         _distribute_scores(comment, username)
-        return comment
+        return (comment, content,)
     
     return transact(transaction, 'An error occured while creating the comment')
 

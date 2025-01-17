@@ -51,6 +51,6 @@ def create_post(title: str, body: str, user: (str | User), community: (str | Com
         username = user if isinstance(user, str) else user.username
         User.objects.filter(username=username).update(karma = F('karma') + karma_gained)
     
-        return post
+        return (post, content,)
     
     return transact(transaction, 'An error occured while creating the post')
