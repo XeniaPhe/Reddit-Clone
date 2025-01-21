@@ -1,5 +1,8 @@
 import graphene
 from graphene_django import DjangoObjectType
+from django.utils import timezone
+from django.db.models import F, ExpressionWrapper, IntegerField
+from django.db.models.functions import ExtractHour
 
 import core.filters.operators as ops
 from core.utils.query_utils import get_list, filter_and_paginate
@@ -73,6 +76,23 @@ class PostQuery(graphene.ObjectType):
     @filter_and_paginate(PostType)
     def resolve_hot_posts(root, info, community_name, *args, **kwargs):
         assert_community_exists(community_name)
+        
+        return (Post.objects
+         .select_related('content')
+         .filter(community_id=community_name)
+         .annotate(
+             hours_since_publish = ExpressionWrapper(
+                 ExtractHour(timezone.now() - F('publish_date')),
+                 output_field=IntegerField()
+             )
+         )
+         .annotate(
+             engagement_per_hour = ExpressionWrapper(
+                 F('engagement_score') / F('hours_since_publish'),
+                 output_field=IntegerField()
+             )
+         )
+         .order_by('-engagement_per_hour'))
         
 class CreatePost(graphene.Mutation):
     class Arguments:
