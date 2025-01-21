@@ -4,7 +4,7 @@ from graphene_django import DjangoObjectType
 import core.filters.operators as ops
 from core.custom_errors import bad_request
 from core.utils.query_utils import get_list, filter_and_paginate
-from core.auth.roles import MEMBER
+from core.auth.roles import MEMBER, GUEST
 from core.auth.auth import require_authentication, require_community_authorization, require_content_authorization
 
 from core.models import Comment, Content
@@ -46,7 +46,7 @@ class CreateComment(graphene.Mutation):
     comment_id = graphene.Field(graphene.UUID)
     
     @require_authentication()
-    @require_community_authorization(community_param='community_name', required_role=MEMBER, admin_override=True)
+    @require_community_authorization(community_param='community_name', required_role=GUEST, admin_override=True)
     def mutate(root, info, community_name, post_id, body, parent_id=None):
         post = get_unremoved_post(post_id, select_related=['community'])
         

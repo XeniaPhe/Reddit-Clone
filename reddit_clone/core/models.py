@@ -45,6 +45,7 @@ class Community(models.Model):
 class Membership(models.Model):    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=3, choices=DB_ROLE_CHOICES, default=MEMBER)
+    activity_score = models.IntegerField(default=0)
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name='memberships')
     community = models.ForeignKey(to=Community, on_delete=models.CASCADE, related_name='memberships')
     

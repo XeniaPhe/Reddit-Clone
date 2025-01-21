@@ -11,81 +11,73 @@ class ActionType(Enum):
     VOTE_POST = 4
     VOTE_COMMENT = 5
     WRITE_POST = 6
-    WRITE_COMMENT = 7
     
-class ContentType(Enum):
-    POST = 8
-    COMMENT = 9
+class OwnerType(Enum):
+    POST_OWNER = 7
+    COMMENT_OWNER = 8
+    ACTOR = 9
     
 class ScoreType(Enum):
     KARMA = 10
     ENGAGEMENT_SCORE = 11
+    ACTIVITY_SCORE = 12
     
 _all_scores = {
     ActionType.COMMENT_UNDER_POST: {
-      ContentType.POST: {
+      OwnerType.POST_OWNER: {
           ScoreType.ENGAGEMENT_SCORE: 32,
           ScoreType.KARMA: 5,
       },
+      OwnerType.ACTOR: {
+          ScoreType.KARMA: 7,
+          ScoreType.ACTIVITY_SCORE: 3,
+      },
     },
     ActionType.COMMENT_UNDER_COMMENT: {
-      ContentType.POST: {
+      OwnerType.POST_OWNER: {
           ScoreType.ENGAGEMENT_SCORE: 11,
           ScoreType.KARMA: 3,
       },
-      ContentType.COMMENT: {
-          ScoreType.ENGAGEMENT_SCORE: (20, 17, 8, 3, ),
-          ScoreType.KARMA: (4, 3, 2, 1, ),
+      OwnerType.COMMENT_OWNER: {
+          ScoreType.ENGAGEMENT_SCORE: 20,
+          ScoreType.KARMA: 4,
+      },
+      OwnerType.ACTOR: {
+          ScoreType.KARMA: 11,
+          ScoreType.ACTIVITY_SCORE: 4,
       },
     },
     ActionType.VOTE_POST: {
-        ContentType.POST: {
+        OwnerType.POST_OWNER: {
             ScoreType.ENGAGEMENT_SCORE: 7,
             ScoreType.KARMA: (3, -2, ),
         },
+        OwnerType.ACTOR: {
+            ScoreType.ACTIVITY_SCORE: 1,
+        },
     },
     ActionType.VOTE_COMMENT: {
-        ContentType.POST: {
+        OwnerType.POST_OWNER: {
             ScoreType.ENGAGEMENT_SCORE: 3,
         },
-        ContentType.COMMENT: {
-            ScoreType.ENGAGEMENT_SCORE: (5, 4, 2, 1, ),
+        OwnerType.COMMENT_OWNER: {
+            ScoreType.ENGAGEMENT_SCORE: 5,
             ScoreType.KARMA: (2, -1, ),
+        },
+        OwnerType.ACTOR: {
+            ScoreType.ACTIVITY_SCORE: 2,
         },
     },
     ActionType.WRITE_POST: {
-      ContentType.POST: {
-          ScoreType.KARMA: 11,
-      },
-    },
-    ActionType.WRITE_COMMENT: {
-      ContentType.COMMENT: {
-          ScoreType.KARMA: 7,
+      OwnerType.ACTOR: {
+          ScoreType.KARMA: 13,
+          ScoreType.ACTIVITY_SCORE: 5,
       },
     },
 }
 
-def get_score(action: ActionType, content_type: ContentType, score_type: ScoreType,
-              vote: VoteType=None, order_index: int=None):
-    
-    if (vote and order_index):
-        internal_server_error('Invalid request: Cannot pass both "vote" and "order_index" to "get_score"')
-        
+def get_score(action: ActionType, owner_type: OwnerType, score_type: ScoreType):
     action_scores = _all_scores.get(action, None)
-    action_content_scores = action_scores.get(content_type, None) if action_scores else None
-    scores = action_content_scores.get(score_type, 0) if action_content_scores else 0
-    
-    if isinstance(scores, int):
-        return scores
-    
-    if vote and order_index:
-        internal_server_error('Invalid Request: Both "vote" and "order_index" cannot be passed to "get_score"')
-    elif not vote and not order_index:
-        internal_server_error('Invalid Request: One of the "vote" or "order_index" must be passed to "get_score"')
-            
-    index = order_index if order_index else vote.value
-    
-    if index >= len(scores):
-        internal_server_error('Invalid Request: Index is out of bounds')
-    
-    return scores[index]
+    action_owner_scores = action_scores.get(owner_type, None) if action_scores else None
+    scores = action_owner_scores.get(score_type, 0) if action_owner_scores else 0
+    return scores

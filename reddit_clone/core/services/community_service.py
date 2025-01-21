@@ -2,7 +2,7 @@ from django.db.models import F
 from core.models import Community, User, Membership
 from core.services.user_service import assert_user
 from core.custom_errors import community_not_found, bad_request
-from core.auth.roles import FOUNDER, MEMBER, MODERATOR, GUEST
+from core.auth.roles import FOUNDER, MEMBER, MODERATOR, GUEST, BANNED
 from core.utils.service_utils import add_to_query_dict
 from core.transact import transact
 from core.utils.manager_utils import preselect
@@ -64,11 +64,11 @@ def promote_to_moderator(community: (str | Community), user: (str | User)):
     add_to_query_dict(query_dict, 'community', community)
     membership = Membership.objects.filter(**query_dict).first()
     
-    if membership and membership.role == MEMBER:
-        membership.role = MODERATOR
-        membership.save()
-    else:
+    if (not membership) or (membership.role != MEMBER):
         bad_request('Only a member of a community can be promoted to moderator')
+        
+    membership.role = MODERATOR
+    membership.save()
         
 def demote_to_member(community: (str | Community), user: (str | User)):
     if not isinstance(user, User):
@@ -79,8 +79,50 @@ def demote_to_member(community: (str | Community), user: (str | User)):
     add_to_query_dict(query_dict, 'community', community)
     membership = Membership.objects.filter(**query_dict).first()
     
-    if membership and membership.role == MODERATOR:
+    if (not membership) or (membership.role != MODERATOR):
+        bad_request('Only a moderator of a community can be demoted to member')
+    
+    membership.role = MEMBER
+    membership.save()
+        
+def ban_member(community: (str | Community), user: (str | User)):
+    if not isinstance(user, User):
+        assert_user(user)
+        
+    query_dict = {}
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    membership = Membership.objects.filter(**query_dict).first()
+    
+    if (not membership) or (membership.role != MEMBER):
+        bad_request('Only a member of a community can be banned')
+    
+    transact(transaction, 'An error occured while banning a member from community')
+    
+    def transaction():
+        membership.role = BANNED
+        membership.save()
+    
+        community_name = community if isinstance(community, str) else community.name
+        Community.objects.filter(name=community_name).update(number_of_members = F('number_of_members') - 1)
+        
+def unban_member(community: (str | Community), user: (str | User)):
+    if not isinstance(user, User):
+        assert_user(user)
+        
+    query_dict = {}
+    add_to_query_dict(query_dict, 'user', user)
+    add_to_query_dict(query_dict, 'community', community)
+    membership = Membership.objects.filter(**query_dict).first()
+    
+    if (not membership) or (membership.role != BANNED):
+        bad_request('Only a banned member of a community can be unbanned')
+    
+    transact(transaction, 'An error occured while unbanning a member from community')
+    
+    def transaction(): 
         membership.role = MEMBER
         membership.save()
-    else:
-        bad_request('Only a moderator of a community can be demoted to member')
+    
+        community_name = community if isinstance(community, str) else community.name
+        Community.objects.filter(name=community_name).update(number_of_members = F('number_of_members') + 1)
