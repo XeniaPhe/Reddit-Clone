@@ -5,7 +5,7 @@ from django.db.models import F, ExpressionWrapper, IntegerField
 from django.db.models.functions import ExtractHour
 
 import core.filters.operators as ops
-from core.utils.query_utils import get_list, filter_and_paginate
+from core.utils.query_utils import get_list, paginate
 from core.auth.roles import MEMBER
 from core.auth.auth import (
     require_authentication,
@@ -45,7 +45,6 @@ class PostQuery(graphene.ObjectType):
     post_by_id = graphene.Field(PostType, id=graphene.Argument(graphene.UUID, required=True))
     posts = get_list(PostType, filter=True, paginate=True)
     
-    home_feed = get_list(PostType, filter=False, paginate=True)
     new_posts = get_list(PostType, filter=False, paginate=True,
                          community_name=graphene.Argument(graphene.String, required=True))
     
@@ -56,24 +55,30 @@ class PostQuery(graphene.ObjectType):
                          community_name=graphene.Argument(graphene.String, required=True),
                          time_range=graphene.Argument(TimeRangeEnum, required=False, default_value=TimeRangeEnum.PAST_24_HOURS))
     
+    home_feed = get_list(PostType, filter=False, paginate=True)
+    
     def resolve_post_by_id(root, info, id):
         return get_post(id, select_related=['content'])
     
     @optional_authentication
-    @filter_and_paginate(PostType)
+    @paginate()
     def resolve_posts(root, info, *args, **kwargs):
-        return Post.objects.select_related('content').all()
+        return (Post.objects
+                .select_related('content')
+                .order_by('-content__publish_date')
+                .all())
     
     @optional_authentication
-    @filter_and_paginate(PostType)
+    @paginate()
     def resolve_new_posts(root, info, community_name, *args, **kwargs):
         assert_community_exists(community_name)
-        return (Post.objects.filter(community_id=community_name)
+        return (Post.objects
                 .select_related('content')
+                .filter(community_id=community_name)
                 .order_by('-content__publish_date'))
         
     @optional_authentication
-    @filter_and_paginate(PostType)
+    @paginate()
     def resolve_hot_posts(root, info, community_name, *args, **kwargs):
         assert_community_exists(community_name)
         
@@ -82,7 +87,7 @@ class PostQuery(graphene.ObjectType):
          .filter(community_id=community_name)
          .annotate(
              hours_since_publish = ExpressionWrapper(
-                 ExtractHour(timezone.now() - F('publish_date')),
+                 ExtractHour(timezone.now() - F('content__publish_date')),
                  output_field=IntegerField()
              )
          )
@@ -93,6 +98,18 @@ class PostQuery(graphene.ObjectType):
              )
          )
          .order_by('-engagement_per_hour'))
+        
+    @optional_authentication
+    @paginate()
+    def resolve_top_posts(root, info, community_name, time_range, *args, **kwargs):
+        assert_community_exists(community_name)
+        
+        return (Post.objects
+                .select_related('content')
+                .filter(community_id=community_name)
+                .order_by('-content__total_votes'))
+        
+    
         
 class CreatePost(graphene.Mutation):
     class Arguments:

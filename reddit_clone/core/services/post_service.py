@@ -1,11 +1,14 @@
 from uuid import UUID
-from django.db.models import F
+from django.utils import timezone
+from django.db.models import F, ExpressionWrapper, IntegerField
+from django.db.models.functions import ExtractHour
 from core.models import Post, Content, User, Community, Membership
 from core.custom_errors import post_not_found, post_deleted
 from core.utils.service_utils import add_to_query_dict
 from core.score_calculator import ActionType, OwnerType, ScoreType, get_score
 from core.transact import transact
 from core.utils.manager_utils import preselect
+from core.services.community_service import assert_community_exists
 
 def get_post(id: UUID, select_related: list[str]=None, prefetch_related: list[str]=None):
     try:
@@ -63,3 +66,26 @@ def create_post(title: str, body: str, user: (str | User), community: (str | Com
         return (post, content,)
     
     return transact(transaction, 'An error occured while creating the post')
+
+def hot_posts(community_name: str=None):
+    if community_name:
+        assert_community_exists(community_name)
+        posts = Post.objects.filter(community_id=community_name)
+    else:
+        posts = Post.objects.all()
+    
+    return (posts
+            .select_related('content')
+            .annotate(
+                hours_since_publish = ExpressionWrapper(
+                    ExtractHour(timezone.now() - F('content__publish_date')),
+                    output_field=IntegerField()
+                )
+            )
+            .annotate(
+                engagement_per_hour = ExpressionWrapper(
+                    F('engagement_score') / F('hours_since_publish'),
+                    output_field=IntegerField()
+                )
+            )
+            .order_by('-engagement_per_hour'))
